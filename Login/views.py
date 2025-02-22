@@ -37,7 +37,7 @@ def logout(request):
     response.delete_cookie('sessionid')
 
     # Mensaje opcional al cerrar sesión
-    messages.info(request, 'Has cerrado sesión correctamente.')
+    messages.success(request, "Cierre de sesión realizado")
 
     return response
 # ----------- Fin del patrón PROXY ----------- #
