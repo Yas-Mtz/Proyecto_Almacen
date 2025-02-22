@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .Interfaz import ProxyAutenticacion
+from .Login_system import ProxyAutenticacion
 from django.contrib.auth import logout as django_logout
 from django.views.decorators.csrf import csrf_exempt
 
