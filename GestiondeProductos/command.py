@@ -48,7 +48,7 @@ class ActualizarProductoCommand(Command):
 
     def execute(self):
         with connection.cursor() as cursor:
-            cursor.callproc('ActualizarArticulo', [
+            cursor.callproc('RegistrarArticulo', [
                 self.id_articulo,
                 self.nom_articulo,
                 self.desc_articulo,

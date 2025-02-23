@@ -7,7 +7,7 @@
     <title>Agregar Artículo</title>
     <link rel="stylesheet" href="{% static 'css/gestiondeproductos.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{% static 'js/gestiondeproductos.js' %}"></script>  <!-- Enlace al archivo JS -->
+    <script src="{% static 'js/gestiondeproductos.js' %}"></script>  
 </head>
 <body>
     <div class="container">
@@ -32,32 +32,27 @@
                 <form method="post" enctype="multipart/form-data" class="article-form" id="form-articulo">
                     {% csrf_token %}
 
-                    <!-- Campo oculto para definir la acción (add o update) -->
-                    <input type="hidden" name="action" value="add" id="action-field">  <!-- Valor predeterminado para agregar -->
+                    <input type="hidden" name="action" value="add" id="action-field">
 
                     <div class="form-group">
                         <label for="id_articulo">ID del Artículo</label>
-                        <input type="text" name="id_articulo" id="id_articulo" 
-                               value="{{ form.id_articulo.value }}" required>
+                        <input type="text" name="id_articulo" id="id_articulo" value="{{ form.id_articulo.value }}" required>
                     </div>
 
                     <div class="form-group">
                         <label for="nombre_articulo">Nombre del Artículo</label>
-                        <input type="text" name="nombre_articulo" id="nombre_articulo" 
-                               value="{{ form.nombre_articulo.value }}" required>
+                        <input type="text" name="nombre_articulo" id="nombre_articulo" value="{{ form.nombre_articulo.value }}" required>
                     </div>
 
                     <div class="form-group">
                         <label for="id_descripcion_articulo">Descripción del Artículo</label>
-                        <textarea name="descripcion_articulo" id="id_descripcion_articulo" 
-                                  required>{{ form.descripcion_articulo.value }}</textarea>
+                        <textarea name="descripcion_articulo" id="id_descripcion_articulo" required>{{ form.descripcion_articulo.value }}</textarea>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label for="cantidad_articulo">Cantidad</label>
-                            <input type="number" name="cantidad_articulo" id="cantidad_articulo" 
-                                   value="{{ form.cantidad_articulo.value }}" required>
+                            <input type="number" name="cantidad_articulo" id="cantidad_articulo" value="{{ form.cantidad_articulo.value }}" required>
                         </div>
 
                         <div class="form-group">
@@ -72,13 +67,21 @@
                             </select>
                         </div>
                     </div>
-               
-                    <div class="form-actions">
-                        <!-- Botón Guardar: Enviará la acción 'add' -->
-                        <button type="submit" class="btn-submit" id="btn-guardar">Guardar Artículo</button>
 
-                        <!-- Botón Editar: Cambiará la acción a 'update' -->
-                        <button type="button" class="btn-edit" id="btn-editar">Editar Artículo</button>
+                    <div class="qr-section">
+                        <h3>Código QR del Artículo</h3>
+                        <div id="qr-container">
+                            {% if qr_url %}
+                                <img src="{{ qr_url }}" alt="Código QR del artículo" id="qr-image">
+                            {% else %}
+                                <p>No hay QR generado.</p>
+                            {% endif %}
+                        </div>
+                        <button type="button" id="btn-generar-qr">Generar QR</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit" id="btn-guardar">Guardar Artículo</button>
                     </div>
                 </form>
 
