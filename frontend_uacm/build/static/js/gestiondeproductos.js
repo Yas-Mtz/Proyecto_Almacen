@@ -1,18 +1,29 @@
+/**
+ * Función que se ejecuta cuando el DOM está completamente cargado.
+ */
 $(document).ready(function() {
     
-    // Deshabilitar los campos al cargar la página
+    /**
+     * Deshabilita los campos de entrada para el nombre y la descripción del artículo.
+     */
     function deshabilitarCampos() {
         $('#nombre_articulo, #id_descripcion_articulo').prop('disabled', true);
     }
 
+    /**
+     * Habilita los campos de entrada para el nombre, la descripción y el estatus del artículo.
+     */
     function habilitarCampos() {
         $('#nombre_articulo, #id_descripcion_articulo, #id_estatus').prop('disabled', false);
     }
 
-    // Llamamos a la función al cargar la página
+    // Llama a la función para deshabilitar los campos cuando la página se carga
     deshabilitarCampos();
 
-    // Cuando cambia el ID del artículo, consultamos los datos del artículo
+    /**
+     * Manejador de eventos para el evento de cambio en el campo de entrada del ID del artículo.
+     * Obtiene los datos del artículo basado en el ID del artículo seleccionado.
+     */
     $('#id_articulo').on('change', function() {
         var id_articulo = $(this).val();  // Obtener el valor del ID del artículo
         console.log('ID del artículo seleccionado:', id_articulo);
@@ -29,15 +40,21 @@ $(document).ready(function() {
                         // Llenar los campos con la información obtenida
                         $('#nombre_articulo').val(response.nombre_articulo);  
                         $('#id_descripcion_articulo').val(response.descripcion_articulo);  
-                        $('#cantidad_articulo').val('');  // Se deja vacío para que el usuario ingrese la cantidad adicional
+                        $('#cantidad_articulo').val('');  // Dejar vacío para que el usuario ingrese la cantidad adicional
                         $('#id_estatus').val(response.id_estatus);  
 
-                        // 🔹 Deshabilitar todos los campos excepto "cantidad"
+                        // Deshabilitar todos los campos excepto "cantidad"
                         deshabilitarCampos();
                         $('#cantidad_articulo').prop('disabled', false);  // Habilitar solo la cantidad
 
                         // Cambiar la acción a 'update' si el artículo existe
                         $('input[name="action"]').val('update');
+
+                        // Mostrar el código QR
+                        if (response.qr_url) {
+                            $('#qr-image').attr('src', response.qr_url).show();  // Mostrar el QR
+                        }
+
                     } else {
                         // Si el artículo no existe, permitir ingreso normal
                         habilitarCampos();
@@ -59,7 +76,10 @@ $(document).ready(function() {
         }
     });
 
-    // Evento on click para el botón Guardar (registrar o actualizar un artículo)
+    /**
+     * Manejador de eventos para el evento de clic en el botón de guardar.
+     * Registra o actualiza un artículo basado en los datos del formulario.
+     */
     $('#btn-guardar').on('click', function(event) {
         event.preventDefault();  // Prevenir el envío del formulario de forma predeterminada
 
@@ -110,6 +130,32 @@ $(document).ready(function() {
             error: function() {
                 console.log('Error al registrar o actualizar el artículo.');
                 alert('Error al registrar o actualizar el artículo.');
+            }
+        });
+    });
+
+    /**
+     * Manejador de eventos para el evento de clic en el botón "Generar QR".
+     * Genera un código QR para el artículo seleccionado.
+     */
+    $('#btn-generar-qr').on('click', function() {
+        var idArticulo = $('#id_articulo').val();  // Obtener el ID del artículo
+
+        // Realizar la petición AJAX para obtener el QR
+        $.ajax({
+            url: '/GestiondeProductos/',  // Asegúrate de que sea la URL correcta
+            type: 'GET',
+            data: { id_articulo: idArticulo },
+            success: function(response) {
+                if (response.status === 'success') {
+                    // Mostrar la imagen del QR
+                    $('#qr-image').attr('src', response.qr_url).show();
+                } else {
+                    alert('Error al generar el QR: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error al comunicarse con el servidor.');
             }
         });
     });

@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{% static 'css/gestiondeproductos.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{% static 'js/gestiondeproductos.js' %}"></script>  
+    <script src="{% static 'js/qrcode.min.js' %}"></script>  <!--agregado para QR-->
+
 </head>
 <body>
     <div class="container">
@@ -71,14 +73,13 @@
                     <div class="qr-section">
                         <h3>Código QR del Artículo</h3>
                         <div id="qr-container">
-                            {% if qr_url %}
-                                <img src="{{ qr_url }}" alt="Código QR del artículo" id="qr-image">
-                            {% else %}
-                                <p>No hay QR generado.</p>
-                            {% endif %}
+                            <!-- La imagen QR se insertará aquí una vez que se genere -->
+                            <img id="qr-image" style="display: none;" alt="Código QR del artículo">
                         </div>
-                        <button type="button" id="btn-generar-qr">Generar QR</button>
+
                     </div>
+                    
+                    
 
                     <div class="form-actions">
                         <button type="submit" class="btn-submit" id="btn-guardar">Guardar Artículo</button>
