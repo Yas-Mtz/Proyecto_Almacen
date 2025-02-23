@@ -6,8 +6,11 @@
     --error-color: #ff4444;
     --success-color: #4CAF50;
     --border-radius: 8px;
+    --hover-bg: #3E2531;
+    --focus-color: #3498db;
 }
 
+/* Reset de márgenes y rellenos */
 * {
     margin: 0;
     padding: 0;
@@ -20,8 +23,10 @@ body {
     color: var(--text-color);
     display: flex;
     min-height: 100vh;
+    flex-direction: column;
 }
 
+/* Contenedor principal */
 .container {
     display: flex;
     width: 100%;
@@ -35,12 +40,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    height: 100vh;
+    position: fixed;
 }
 
 .logo {
     color: var(--text-color);
     font-size: 18px;
     margin-bottom: 30px;
+    text-align: center;
+    font-weight: bold;
 }
 
 .home-link {
@@ -51,12 +60,37 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 5px;
+    transition: background-color 0.2s ease;
 }
 
-/* Main Content */
+.home-link:hover {
+    background-color: var(--hover-bg);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.sidebar .menu-item {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.sidebar .menu-item:hover {
+    background-color: var(--hover-bg);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* Contenido principal */
 .main-content {
     flex: 1;
     padding: 20px;
+    margin-left: 80px; /* Para no solapar con la barra lateral */
 }
 
 /* Header */
@@ -73,6 +107,7 @@ body {
 .page-title {
     color: var(--text-color);
     font-size: 24px;
+    font-weight: bold;
 }
 
 .user-profile {
@@ -89,7 +124,7 @@ body {
     background-color: #ddd;
 }
 
-/* Form Container */
+/* Contenedor del formulario */
 .form-container {
     background-color: var(--secondary-bg);
     border-radius: var(--border-radius);
@@ -102,6 +137,7 @@ body {
     gap: 20px;
 }
 
+/* Grupos de formulario */
 .form-group {
     display: flex;
     flex-direction: column;
@@ -114,10 +150,11 @@ body {
     gap: 20px;
 }
 
-/* Form Elements */
+/* Estilos de los elementos del formulario */
 label {
     font-size: 14px;
     font-weight: bold;
+    color: var(--text-color);
 }
 
 input, select, textarea {
@@ -136,12 +173,15 @@ textarea {
 
 input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--success-color);
+    border-color: var(--focus-color);
+    background-color: rgba(52, 152, 219, 0.1); /* Fondo suave al enfocar */
 }
 
-/* QR Section */
+/* Sección QR */
 .qr-section {
-    align-items: center;
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
 }
 
 .qr-container {
@@ -157,7 +197,7 @@ input:focus, select:focus, textarea:focus {
     display: block;
 }
 
-/* Form Actions */
+/* Acciones del formulario */
 .form-actions {
     display: flex;
     justify-content: flex-end;
@@ -173,13 +213,19 @@ input:focus, select:focus, textarea:focus {
     cursor: pointer;
     font-weight: bold;
     transition: opacity 0.2s ease;
+    width: 200px;
 }
 
 .btn-submit:hover {
     opacity: 0.9;
 }
 
-/* Error Messages */
+.btn-submit:focus {
+    outline: none;
+    border-color: var(--focus-color);
+}
+
+/* Mensajes de error */
 .error-container {
     margin-top: 20px;
     padding: 15px;
@@ -196,7 +242,7 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 5px;
 }
 
-/* Responsive Design */
+/* Diseño adaptable (responsive) */
 @media (max-width: 768px) {
     .form-row {
         grid-template-columns: 1fr;
@@ -209,7 +255,7 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
-
+/* Popup (modal) */
 .popup {
     display: none;
     position: fixed;

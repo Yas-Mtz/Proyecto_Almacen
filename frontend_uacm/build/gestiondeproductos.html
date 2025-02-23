@@ -29,8 +29,11 @@
             </header>
 
             <section class="form-container">
-                <form method="post" enctype="multipart/form-data" class="article-form">
+                <form method="post" enctype="multipart/form-data" class="article-form" id="form-articulo">
                     {% csrf_token %}
+
+                    <!-- Campo oculto para definir la acción (add o update) -->
+                    <input type="hidden" name="action" value="add" id="action-field">  <!-- Valor predeterminado para agregar -->
 
                     <div class="form-group">
                         <label for="id_articulo">ID del Artículo</label>
@@ -52,7 +55,7 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="id_cantidad_articulo">Cantidad</label>
+                            <label for="cantidad_articulo">Cantidad</label>
                             <input type="number" name="cantidad_articulo" id="cantidad_articulo" 
                                    value="{{ form.cantidad_articulo.value }}" required>
                         </div>
@@ -60,17 +63,22 @@
                         <div class="form-group">
                             <label for="id_estatus">Estatus:</label>
                             <select name="id_estatus" id="id_estatus" required>
-                                <option value="" disabled selected>Seleccione un estatus</option>  <!-- Opción por defecto -->
+                                <option value="" disabled selected>Seleccione un estatus</option>
                                 {% for estatus in estatus_list %}
-                                <option value="{{ estatus.0 }}">{{ estatus.1 }}</option>
+                                    <option value="{{ estatus.0 }}" {% if estatus.0 == form.id_estatus.value %} selected {% endif %}>
+                                        {{ estatus.1 }}
+                                    </option>
                                 {% endfor %}
-                            </select><br>
+                            </select>
                         </div>
                     </div>
                
                     <div class="form-actions">
+                        <!-- Botón Guardar: Enviará la acción 'add' -->
                         <button type="submit" class="btn-submit" id="btn-guardar">Guardar Artículo</button>
-                        <button type="button" class="btn-clear" id="btn-limpiar">Limpiar Campos</button>  <!-- Botón para limpiar -->
+
+                        <!-- Botón Editar: Cambiará la acción a 'update' -->
+                        <button type="button" class="btn-edit" id="btn-editar">Editar Artículo</button>
                     </div>
                 </form>
 
