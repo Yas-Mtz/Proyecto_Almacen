@@ -1,8 +1,8 @@
 /**
  * Función que se ejecuta cuando el DOM está completamente cargado.
  */
-$(document).ready(function() {
-    
+$(document).ready(function () {
+
     /**
      * Deshabilita los campos de entrada para el nombre y la descripción del artículo.
      */
@@ -24,24 +24,24 @@ $(document).ready(function() {
      * Manejador de eventos para el evento de cambio en el campo de entrada del ID del artículo.
      * Obtiene los datos del artículo basado en el ID del artículo seleccionado.
      */
-    $('#id_articulo').on('change', function() {
+    $('#id_articulo').on('change', function () {
         var id_articulo = $(this).val();  // Obtener el valor del ID del artículo
         console.log('ID del artículo seleccionado:', id_articulo);
-        
+
         if (id_articulo) {
             $.ajax({
                 url: '/GestiondeProductos/',  // URL correcta para la consulta
                 method: 'GET',
                 data: { 'id_articulo': id_articulo },
-                success: function(response) {
+                success: function (response) {
                     console.log('Respuesta del servidor:', response);
-                    
+
                     if (response.status === 'success') {
                         // Llenar los campos con la información obtenida
-                        $('#nombre_articulo').val(response.nombre_articulo);  
-                        $('#id_descripcion_articulo').val(response.descripcion_articulo);  
+                        $('#nombre_articulo').val(response.nombre_articulo);
+                        $('#id_descripcion_articulo').val(response.descripcion_articulo);
                         $('#cantidad_articulo').val('');  // Dejar vacío para que el usuario ingrese la cantidad adicional
-                        $('#id_estatus').val(response.id_estatus);  
+                        $('#id_estatus').val(response.id_estatus);
 
                         // Deshabilitar todos los campos excepto "cantidad"
                         deshabilitarCampos();
@@ -62,7 +62,7 @@ $(document).ready(function() {
                         $('input[name="action"]').val('add');
                     }
                 },
-                error: function() {
+                error: function () {
                     console.log('Error al consultar el artículo.');
                     alert('Error al consultar el artículo.');
                 }
@@ -80,7 +80,7 @@ $(document).ready(function() {
      * Manejador de eventos para el evento de clic en el botón de guardar.
      * Registra o actualiza un artículo basado en los datos del formulario.
      */
-    $('#btn-guardar').on('click', function(event) {
+    $('#btn-guardar').on('click', function (event) {
         event.preventDefault();  // Prevenir el envío del formulario de forma predeterminada
 
         var data = {
@@ -107,11 +107,11 @@ $(document).ready(function() {
             url: '/GestiondeProductos/',  // Asegúrate de que la URL sea correcta
             method: 'POST',
             data: data,
-            success: function(response) {
+            success: function (response) {
                 console.log('Respuesta del servidor al guardar:', response);
                 if (response.status === 'success') {
                     alert(response.message);
-                    
+
                     // Limpiar los campos después de guardar
                     $('#id_articulo').val('');
                     $('#nombre_articulo').val('');
@@ -127,7 +127,7 @@ $(document).ready(function() {
                     alert(response.message);
                 }
             },
-            error: function() {
+            error: function () {
                 console.log('Error al registrar o actualizar el artículo.');
                 alert('Error al registrar o actualizar el artículo.');
             }
@@ -138,7 +138,7 @@ $(document).ready(function() {
      * Manejador de eventos para el evento de clic en el botón "Generar QR".
      * Genera un código QR para el artículo seleccionado.
      */
-    $('#btn-generar-qr').on('click', function() {
+    $('#btn-generar-qr').on('click', function () {
         var idArticulo = $('#id_articulo').val();  // Obtener el ID del artículo
 
         // Realizar la petición AJAX para obtener el QR
@@ -146,7 +146,7 @@ $(document).ready(function() {
             url: '/GestiondeProductos/',  // Asegúrate de que sea la URL correcta
             type: 'GET',
             data: { id_articulo: idArticulo },
-            success: function(response) {
+            success: function (response) {
                 if (response.status === 'success') {
                     // Mostrar la imagen del QR
                     $('#qr-image').attr('src', response.qr_url).show();
@@ -154,7 +154,7 @@ $(document).ready(function() {
                     alert('Error al generar el QR: ' + response.message);
                 }
             },
-            error: function() {
+            error: function () {
                 alert('Error al comunicarse con el servidor.');
             }
         });

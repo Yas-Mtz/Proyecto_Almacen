@@ -49,7 +49,7 @@ class AutenticacionReal(Autenticacion):
     def cerrar_sesion(self, request):
         logout(request)
         request.session.flush()  # elimina la sesión actual
-       
+
 # ----------- Fin del patrón PROXY ----------- #
 
 # ----------- PATRÓN PROXY ----------- #

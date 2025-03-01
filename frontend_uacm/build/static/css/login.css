@@ -1,3 +1,5 @@
+/*css login */
+
 :root {
     --primary-color: #4a1c2c;
     --secondary-color: #ffffff;
@@ -112,18 +114,18 @@ body {
     border-radius: 5px;
     font-size: 16px;
     font-weight: bold; /* Hacer el texto en negrita */
-    text-transform: uppercase; /* Texto en mayúsculas */
+    text-transform: uppercase; /* Texto en mayúsculas */
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.2s ease; /* Animaciones */
 }
 
 .submit-btn:hover {
     background-color: var(--primary-color);
-    transform: scale(1.05); /* Efecto de aumento de tamaño */
+    transform: scale(1.05); /* Efecto de aumento de tamaño */
 }
 
 .submit-btn:active {
-    transform: scale(0.98); /* Efecto de presión */
+    transform: scale(0.98); /* Efecto de presión */
 }
 
 
@@ -136,4 +138,3 @@ body {
         padding: 20px;
     }
 }
-
