@@ -4,65 +4,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inventario UACM</title>
-    <link rel="stylesheet" href="{% static 'css/home.css' %}">
-    
+    <title>Sistema de Inventario</title>
+    <link rel="stylesheet" href="{% static 'css/home1.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'js/home.js' %}"></script>  
 </head>
 <body>
-    <nav class="sidebar">
-        <h1 class="logo">UACM</h1>
-        
-    </nav>
-
-    <main class="main-content">
-
-        <section class="welcome-card">
-            <h2>Sistema de Inventario</h2>
-            <div class="user-welcome">
-                <div class="profile-circle">
-                    <img src="{% static 'media/usuario.png' %}" >
-                </div>
-                <p>Bienvenido</p>
-                <div class="user-profile">
-                    <span>{{ user.get_full_name|default:user.username }}</span>
-                    <div class="user-icon"></div>
-                  </div>
+    <header>
+        <div class="logo">
+            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM">
+        </div>
+        <h1>SISTEMA DE INVENTARIO</h1>
+        <div class="user-profile" id="userProfile">
+            <span class="user-icon">👤</span>
+            <span class="user-name">{{ user.username }}</span>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="{% url 'logout' %}">Cerrar sesión</a>
             </div>
-            <form action="{% url 'logout' %}" method="POST">
-                {% csrf_token %}
-                <button type="submit" class="logout-btn">Cerrar sesión</button>
-            </form>
-            
-        </section>
+        </div>
+        
+        
+    </header>
 
-        <section class="menu-container">
-            <a href="{% url 'gestiondeproductos' %}" class="menu-item">
-
-                <div class="menu-icon green">
-                    <i class="icon-gestion"></i>
-                </div>
-                <span>Gestión de Productos</span>
+    <main>
+        <div class="welcome-box">
+            <p>Bienvenido <span class="user-name">{{ user.username }}</span></p>
+        </div>
+        <section class="options">
+            <div class="card">
+                <div class="icon">📦</div>
+                <h2>GESTIÓN DE PRODUCTOS</h2>
+                <p>Administra los productos del almacén con registro, actualización y control de disponibilidad.</p>
+                <a href="{% url 'gestiondeproductos' %}" class="arrow blue">→</a>
                 
-                <span class="arrow">→</span>
-            </a>
-
-            <a href="{% url 'reportes' %}" class="menu-item">
-                <div class="menu-icon yellow">
-                    <i class="icon-reportes"></i>
-                </div>
-                <span>Reportes e Inventario</span>
-                <span class="arrow">→</span>
-            </a>
-
-            <a href="#" class="menu-item">
-                <div class="menu-icon blue">
-                    <i class="icon-solicitud"></i>
-                </div>
-                <span>Solicitud de Artículos</span>
-                <span class="arrow">→</span>
-            </a>
+            </div>
+            <div class="card">
+                <div class="icon">⏰</div>
+                <h2>REPORTES E INVENTARIO</h2>
+                <p>Genera reportes de solicitudes e inventarios por fecha para un mayor control del almacén.</p>
+                <a href="{% url 'reportes' %}" class="arrow orange">→</a>
+            </div>
+            <div class="card">
+                <div class="icon">🛒</div>
+                <h2>SOLICITUD DE ARTÍCULOS</h2>
+                <p>Elabora las solicitudes de productos.</p>
+                <a href="#" class="arrow green">→</a>
+            </div>
         </section>
     </main>
-    
+
+    <footer>
+        <p>"NADA HUMANO ME ES AJENO"</p>
+    </footer>
 </body>
 </html>

@@ -1,17 +1,15 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.sessions.models import Session
 from django.utils.timezone import now
-from django.contrib.auth.models import User  # Asegúrate de importar User
+from django.contrib.auth.models import User
 from abc import ABC, abstractmethod
 
 # ----------- PATRÓN TEMPLATE METHOD ----------- #
-# clase base abstracta ABC (clase base para otras clases)
 
 
 class Autenticacion(ABC):
     """
-    El patrón Template Method define el esqueleto de un algoritmo, delegando algunos pasos a las subclases.
-    La estructura del algoritmo está definida en el método `autenticar` y `cerrar_sesion`.
+    Define el esqueleto de un algoritmo para autenticar y cerrar sesión.
     """
     @abstractmethod
     def autenticar(self, request):
@@ -20,6 +18,7 @@ class Autenticacion(ABC):
     @abstractmethod
     def cerrar_sesion(self, request):
         pass
+
 # ----------- Fin del patrón TEMPLATE METHOD ----------- #
 
 # ----------- PATRÓN PROXY ----------- #
@@ -27,72 +26,45 @@ class Autenticacion(ABC):
 
 class AutenticacionReal(Autenticacion):
     """
-    La clase `AutenticacionReal` es responsable de autenticar al usuario.
-    Este es el comportamiento "real" que se delega al Proxy.
+    Implementación real de la autenticación de usuario.
     """
 
     def autenticar(self, request):
-        # obtener valores
         username = request.POST.get('username')
         password = request.POST.get('password')
-        # aitenticación de usuario/ verificación de credenciales
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
             login(request, user)
-            # Guarda el ID del usuario en la sesión
-
             request.session['user_id'] = user.id
             return True
         return False
 
     def cerrar_sesion(self, request):
         logout(request)
-        request.session.flush()  # elimina la sesión actual
-
-# ----------- Fin del patrón PROXY ----------- #
-
-# ----------- PATRÓN PROXY ----------- #
+        request.session.flush()
 
 
 class ProxyAutenticacion(Autenticacion):
     """
-    El patrón Proxy actúa como intermediario entre el cliente (login) y la implementación real de autenticación.
-    Controla el acceso a la autenticación real, como impedir múltiples sesiones.
+    Proxy para controlar el acceso a la autenticación real.
+    Bloquea múltiples sesiones y delega la autenticación a AutenticacionReal.
     """
-
-    # ----------- PATRÓN SINGLETON ----------- #
-    _instancia = None  # Atributo estático para almacenar la instancia única
+    _instancia = None  # Singleton
 
     def __new__(cls, *args, **kwargs):
-        """
-        Controla la creación de una única instancia de ProxyAutenticacion.
-        Si la instancia no existe, la crea, de lo contrario, retorna la instancia existente.
-        """
         if not cls._instancia:
             cls._instancia = super().__new__(cls, *args, **kwargs)
         return cls._instancia
-    # ----------- Fin del patrón SINGLETON ----------- #
 
     def __init__(self):
-        if not hasattr(self, 'autenticacion_real'):  # Evita re-inicialización si ya existe
-            # Inicia la instancia de AutenticacionReal
+        if not hasattr(self, 'autenticacion_real'):
             self.autenticacion_real = AutenticacionReal()
 
     def autenticar(self, request):
-        """#+
-        Autentica al usuario y verifica si ya tiene una sesión activa.#+
-#+
-        Parameters:#+
-        request (HttpRequest): La solicitud HTTP que contiene los datos de inicio de sesión.#+
-#+
-        Returns:#+
-        bool: True si la autenticación es exitosa y no hay sesión activa para el usuario.#+
-              False si la autenticación falla o si el usuario ya tiene una sesión activa.#+
-        """  # +
         username = request.POST.get('username')
 
-        # Buscar sesiones activas del usuario
         if self.verificar_sesion_activa(username):
             print(
                 f"Usuario {username} ya tiene una sesión activa. No se permite otro inicio de sesión.")
@@ -112,26 +84,21 @@ class ProxyAutenticacion(Autenticacion):
 
     def verificar_sesion_activa(self, username):
         """
-        Busca si el usuario ya tiene una sesión activa en la base de datos.
+        Verifica si el usuario ya tiene una sesión activa en el sistema.
         """
         try:
-            # Obtiene el ID del usuario basado en el username
             user = User.objects.get(username=username)
-            user_id = user.id  # Obtén el ID de usuario
-
-            # Busca sesiones activas
+            user_id = user.id
             sesiones = Session.objects.filter(
                 expire_date__gte=now())  # Solo sesiones activas
 
             for session in sesiones:
                 session_data = session.get_decoded()
-                stored_user_id = session_data.get('user_id')
+                if session_data.get('user_id') == user_id:
+                    return True  # Sesión activa encontrada
 
-                # Compara el ID del usuario de la sesión con el ID de usuario actual
-                if stored_user_id == user_id:
-                    return True  # Se encontró una sesión activa
             return False
         except User.DoesNotExist:
-            # Si no existe el usuario con ese nombre
-            return False
+            return False  # Usuario no encontrado
+
 # ----------- Fin del patrón PROXY ----------- #
