@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+from dotenv import load_dotenv
 import environ
 from pathlib import Path
 import os
@@ -76,13 +77,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'SistemaUACM.wsgi.application'
 
 
-# Cargar las variables de entorno desde el archivo .env
-env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+env = environ.Env()
+environ.Env.read_env()  # Lee el archivo .env
 
-# Configuración de la base de datos
+# Obtener la URL de la base de datos
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='mysql://root:root@db/uacm_db'),
+    'default': env.db()  # Django automáticamente lo convertirá a la configuración adecuada
 }
 
 
@@ -121,7 +121,7 @@ USE_TZ = True
 STATIC_URL = '/static/'  # Ruta base para archivos estáticos
 STATICFILES_DIRS = [
     # Incluye la carpeta de React
-    os.path.join(BASE_DIR, 'frontend_uacm/build/static'), 
+    os.path.join(BASE_DIR, 'frontend_uacm/build/static'),
 ]
 # Carpeta donde se recopilan los archivos
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

@@ -1,65 +1,66 @@
-/**
- * Función que se ejecuta cuando el DOM está completamente cargado.
- */
 $(document).ready(function () {
+    let cantidadActual = 0; // Variable para almacenar la cantidad actual del producto
 
-    /**
-     * Deshabilita los campos de entrada para el nombre y la descripción del artículo.
-     */
-    function deshabilitarCampos() {
-        $('#nombre_articulo, #id_descripcion_articulo').prop('disabled', true);
+    function actualizarQR(id, nombre) {
+        if (id && nombre) {
+            console.log('ID del artículo seleccionado:', id);
+            console.log('Nombre del artículo seleccionado:', nombre);
+
+            const url = `/GestiondeProductos/generar_qr/?id=${id}&nombre=${encodeURIComponent(nombre)}`;
+            console.log('URL del QR:', url);
+
+            fetch(url)
+                .then(response => response.blob())
+                .then(blob => {
+                    console.log('Imagen QR recibida');
+                    const qrImageUrl = URL.createObjectURL(blob);
+                    $('#qr-image').attr('src', qrImageUrl).show();
+                    
+                    $('#download-btn').off('click').on('click', function () {
+                        const a = document.createElement('a');
+                        a.href = qrImageUrl;
+                        a.download = `QR_${id}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al generar el QR:', error);
+                });
+        }
     }
 
-    /**
-     * Habilita los campos de entrada para el nombre, la descripción y el estatus del artículo.
-     */
-    function habilitarCampos() {
-        $('#nombre_articulo, #id_descripcion_articulo, #id_estatus').prop('disabled', false);
-    }
-
-    // Llama a la función para deshabilitar los campos cuando la página se carga
-    deshabilitarCampos();
-
-    /**
-     * Manejador de eventos para el evento de cambio en el campo de entrada del ID del artículo.
-     * Obtiene los datos del artículo basado en el ID del artículo seleccionado.
-     */
-    $('#id_articulo').on('change', function () {
-        var id_articulo = $(this).val();  // Obtener el valor del ID del artículo
+    $('#edit-btn').on('click', function () {
+        var id_articulo = $('#buscar').val();
         console.log('ID del artículo seleccionado:', id_articulo);
 
         if (id_articulo) {
             $.ajax({
-                url: '/GestiondeProductos/',  // URL correcta para la consulta
+                url: '/GestiondeProductos/',  
                 method: 'GET',
                 data: { 'id_articulo': id_articulo },
                 success: function (response) {
                     console.log('Respuesta del servidor:', response);
 
                     if (response.status === 'success') {
-                        // Llenar los campos con la información obtenida
-                        $('#nombre_articulo').val(response.nombre_articulo);
-                        $('#id_descripcion_articulo').val(response.descripcion_articulo);
-                        $('#cantidad_articulo').val('');  // Dejar vacío para que el usuario ingrese la cantidad adicional
+                        $('#id_articulo').val(id_articulo);
+                        $('#nom_articulo').val(response.nombre_articulo);
+                        $('#descripcion_articulo').val(response.descripcion_articulo);
+                        $('#estatus').val(response.id_estatus);
                         $('#id_estatus').val(response.id_estatus);
 
-                        // Deshabilitar todos los campos excepto "cantidad"
-                        deshabilitarCampos();
-                        $('#cantidad_articulo').prop('disabled', false);  // Habilitar solo la cantidad
+                        // Guardamos la cantidad actual del artículo
+                        cantidadActual = parseInt(response.cantidad_articulo) || 0;
+                        $('#cantidad_actual').text(`Cantidad actual: ${cantidadActual}`); // Mostrar cantidad actual en una etiqueta
 
-                        // Cambiar la acción a 'update' si el artículo existe
                         $('input[name="action"]').val('update');
-
-                        // Mostrar el código QR
-                        if (response.qr_url) {
-                            $('#qr-image').attr('src', response.qr_url).show();  // Mostrar el QR
-                        }
-
+                        actualizarQR(id_articulo, response.nombre_articulo);
+                        alert(response.message);
                     } else {
-                        // Si el artículo no existe, permitir ingreso normal
-                        habilitarCampos();
                         $('#cantidad_articulo').prop('disabled', false);
                         $('input[name="action"]').val('add');
+                        alert(response.message);
                     }
                 },
                 error: function () {
@@ -68,60 +69,50 @@ $(document).ready(function () {
                 }
             });
         } else {
-            // Si no se selecciona un artículo, permitir el ingreso de un nuevo producto
-            $('#nombre_articulo, #id_descripcion_articulo, #cantidad_articulo, #id_estatus').val('');
-            $('#id_qr_articulo').val('');
-            habilitarCampos(); // Permitir la edición de un nuevo producto
+            $('#nom_articulo, #descripcion_articulo, #cantidad_articulo, #id_estatus').val('');
+            $('#qr-image').attr('src', '').hide();
             $('input[name="action"]').val('add');
         }
     });
 
-    /**
-     * Manejador de eventos para el evento de clic en el botón de guardar.
-     * Registra o actualiza un artículo basado en los datos del formulario.
-     */
     $('#btn-guardar').on('click', function (event) {
-        event.preventDefault();  // Prevenir el envío del formulario de forma predeterminada
+        event.preventDefault();
+        console.log("Valor de nom_articulo antes de enviar:", $('#nom_articulo').val());
+
+        let nuevaCantidad = parseInt($('#cantidad_articulo').val()) || 0;
+        let totalCantidad = cantidadActual + nuevaCantidad; // Sumar cantidad actual + nueva
 
         var data = {
             id_articulo: $('#id_articulo').val(),
-            nombre_articulo: $('#nombre_articulo').val(),
-            descripcion_articulo: $('#id_descripcion_articulo').val(),
-            cantidad_articulo: $('#cantidad_articulo').val(),  // Esta cantidad se sumará si el artículo ya existe
+            nom_articulo: $('#nom_articulo').val(),
+            descripcion_articulo: $('#descripcion_articulo').val(),
+            cantidad_articulo: totalCantidad, // Enviar la cantidad total
             id_estatus: $('#id_estatus').val(),
-            qr_articulo: $('#id_qr_articulo').val(),
             csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val(),
-            action: $('input[name="action"]').val()  // 'add' o 'update'
+            action: $('input[name="action"]').val()
         };
 
         console.log('Datos a enviar:', data);
 
-        // Verificar que todos los campos estén completos antes de enviar los datos
-        if (!data.id_articulo || !data.nombre_articulo || !data.descripcion_articulo || !data.cantidad_articulo || !data.id_estatus) {
+        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.cantidad_articulo || !data.id_estatus) {
             alert("Por favor, complete todos los campos.");
             return;
         }
 
-        // Enviar los datos al servidor usando AJAX
         $.ajax({
-            url: '/GestiondeProductos/',  // Asegúrate de que la URL sea correcta
+            url: '/GestiondeProductos/',
             method: 'POST',
             data: data,
             success: function (response) {
                 console.log('Respuesta del servidor al guardar:', response);
+                
                 if (response.status === 'success') {
                     alert(response.message);
-
-                    // Limpiar los campos después de guardar
-                    $('#id_articulo').val('');
-                    $('#nombre_articulo').val('');
-                    $('#id_descripcion_articulo').val('');
+                    actualizarQR(data.id_articulo, data.nom_articulo);
+                    $('#nom_articulo').val('');
+                    $('#descripcion_articulo').val('');
                     $('#cantidad_articulo').val('');
                     $('#id_estatus').val('');
-                    $('#id_qr_articulo').val('');
-
-                    // Deshabilitar nuevamente los campos después de guardar
-                    deshabilitarCampos();
                     $('input[name="action"]').val('add');
                 } else {
                     alert(response.message);
@@ -133,31 +124,4 @@ $(document).ready(function () {
             }
         });
     });
-
-    /**
-     * Manejador de eventos para el evento de clic en el botón "Generar QR".
-     * Genera un código QR para el artículo seleccionado.
-     */
-    $('#btn-generar-qr').on('click', function () {
-        var idArticulo = $('#id_articulo').val();  // Obtener el ID del artículo
-
-        // Realizar la petición AJAX para obtener el QR
-        $.ajax({
-            url: '/GestiondeProductos/',  // Asegúrate de que sea la URL correcta
-            type: 'GET',
-            data: { id_articulo: idArticulo },
-            success: function (response) {
-                if (response.status === 'success') {
-                    // Mostrar la imagen del QR
-                    $('#qr-image').attr('src', response.qr_url).show();
-                } else {
-                    alert('Error al generar el QR: ' + response.message);
-                }
-            },
-            error: function () {
-                alert('Error al comunicarse con el servidor.');
-            }
-        });
-    });
-
 });

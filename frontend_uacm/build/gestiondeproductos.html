@@ -4,101 +4,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Artículo</title>
-    <link rel="stylesheet" href="{% static 'css/gestiondeproductos.css' %}">
+    <title>Gestión de Productos - UACM</title>
+    <link rel="stylesheet" href="{% static 'css/gestiondeproductos2.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{% static 'js/gestiondeproductos.js' %}"></script>  
-    <script src="{% static 'js/qrcode.min.js' %}"></script>  <!--agregado para QR-->
-
+    <script src="{% static 'js/gestiondeproductos.js' %}"></script>
+   
 </head>
 <body>
-    <div class="container">
-        <nav class="sidebar">
-            <h1 class="logo">UACM</h1>
-            <a href="{% url 'home' %}" class="menu-item">
-                <img src="home-icon.png" alt="Inicio">
-                Inicio
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM">
+            </div>
+            <a href="{% url 'home' %}" class="home-button">
+                <img src="https://www.svgrepo.com/show/525383/home-1.svg" alt="Menú" class="home-icon">
             </a>
-        </nav>
+        </div>
+        <h1>SISTEMA DE INVENTARIO</h1>
 
-        <main class="main-content">
-            <header class="header">
-                <h1 class="page-title">Agregar Artículo</h1>
-                <div class="user-profile">
-                    <span>Usuario 1</span>
-                    <div class="user-icon"></div>
-                </div>
-            </header>
+        <div class="user-info" id="user-info">
+            <span class="user-icon">👤</span>
+            <span class="user-name">{{ user.username }}</span>
+        </div>
+    </header>
 
-            <section class="form-container">
-                <form method="post" enctype="multipart/form-data" class="article-form" id="form-articulo">
-                    {% csrf_token %}
+    <main class="main-content">
+        <div class="form-container">
+            <h1>Gestión de Productos</h1>
+            <!--Btn -->
+            <div class="search-container">
+                <input type="text" id="buscar" placeholder="Buscar artículo por ID">
+               
+                <button id="edit-btn" class="edit-btn">
+                    <img src="https://static.vecteezy.com/system/resources/previews/010/146/332/non_2x/search-icon-sign-symbol-design-free-png.png" alt="edit">
+                </button>
+            </div>
+                  
+            <form method="POST" action="{% url 'gestiondeproductos' %}">
+                {% csrf_token %}
 
-                    <input type="hidden" name="action" value="add" id="action-field">
+                <input type="hidden" name="action" value="add"> <!-- Acción por defecto: 'add' -->
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_articulo">ID</label>
+                        <input type="text" id="id_articulo" name="id_articulo" required value="{{ next_id }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="nom_articulo">Nombre</label> <!-- Corregido a nom_articulo -->
+                        <input type="text" id="nom_articulo" name="nom_articulo" required> <!-- Corregido a nom_articulo -->
+                    </div>
+                   
 
                     <div class="form-group">
-                        <label for="id_articulo">ID del Artículo</label>
-                        <input type="text" name="id_articulo" id="id_articulo" value="{{ form.id_articulo.value }}" required>
+                        <label for="cantidad_articulo">Cantidad</label>
+                        <input type="number" id="cantidad_articulo" name="cantidad_articulo" required>
                     </div>
-
                     <div class="form-group">
-                        <label for="nombre_articulo">Nombre del Artículo</label>
-                        <input type="text" name="nombre_articulo" id="nombre_articulo" value="{{ form.nombre_articulo.value }}" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="id_descripcion_articulo">Descripción del Artículo</label>
-                        <textarea name="descripcion_articulo" id="id_descripcion_articulo" required>{{ form.descripcion_articulo.value }}</textarea>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="cantidad_articulo">Cantidad</label>
-                            <input type="number" name="cantidad_articulo" id="cantidad_articulo" value="{{ form.cantidad_articulo.value }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="id_estatus">Estatus:</label>
-                            <select name="id_estatus" id="id_estatus" required>
-                                <option value="" disabled selected>Seleccione un estatus</option>
-                                {% for estatus in estatus_list %}
-                                    <option value="{{ estatus.0 }}" {% if estatus.0 == form.id_estatus.value %} selected {% endif %}>
-                                        {{ estatus.1 }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="qr-section">
-                        <h3>Código QR del Artículo</h3>
-                        <div id="qr-container">
-                            <!-- La imagen QR se insertará aquí una vez que se genere -->
-                            <img id="qr-image" style="display: none;" alt="Código QR del artículo">
-                        </div>
-
-                    </div>
-                    
-                    
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-submit" id="btn-guardar">Guardar Artículo</button>
-                    </div>
-                </form>
-
-                {% if form.errors %}
-                    <div class="error-container">
-                        <ul class="error-list">
-                            {% for field in form %}
-                                {% for error in field.errors %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
+                        <label for="estatus">Estatus</label>
+                        <select type="text" id="estatus" name="id_estatus" required>
+                            <option value="" disabled selected>Selecciona un estatus</option>
+                            {% for est in estatus_list %}
+                                <option value="{{ est.id_estatus }}">{{ est.nomb_estatus }}</option>
                             {% endfor %}
-                        </ul>
+                        </select>
                     </div>
-                {% endif %}
-            </section>
-        </main>
-    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion_articulo">Descripción</label>
+                    <textarea id="descripcion_articulo" name="descripcion_articulo" rows="4" required></textarea>
+                </div>
+
+                <div id="button">
+                    <button type="submit" class="submit-btn">Guardar</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="qr-container">
+            <h2>QR Producto</h2>
+            <div class="qr-content">
+                <div class="qr-info">
+                    <p><strong>Descripción</strong></p>
+                    <p>ID: <span id="qr-id">----</span></p>
+                    <p>Nombre: <span id="qr-nombre">----</span></p>
+                </div>
+                <div class="qr-code">
+                    <img id="qr-image" src="" alt="QR" style="display:none;" />
+                    <button id="download-btn" class="download-btn">
+                        <img src="https://www.svgrepo.com/show/425975/download.svg" alt="Descargar">
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+    </main>
+
+    <footer class="footer">
+        <p>"NADA HUMANO ME ES AJENO"</p>
+    </footer>
+
+    <!-- Bloque para mostrar mensajes de Django -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <script type="text/javascript">
+                    // Mostrar el mensaje en una ventana emergente (alert)
+                    alert("{{ message }}");
+
+                    // Mostrar el mensaje en la consola
+                    console.log("Mensaje desde Django: {{ message }}");
+                </script>
+            {% endfor %}
+        </div>
+    {% endif %}
 </body>
 </html>
