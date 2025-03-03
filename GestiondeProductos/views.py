@@ -75,6 +75,8 @@ def gestiondeproductos(request):
 
         try:
             cantidad = int(cantidad_articulo)
+            if cantidad <= 0:
+                return JsonResponse({'status': 'error', 'message': "La cantidad debe ser un número mayor a cero."})
         except (ValueError, TypeError):
             return JsonResponse({'status': 'error', 'message': "La cantidad debe ser un número entero válido."})
 
