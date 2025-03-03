@@ -1,5 +1,5 @@
 from .models import Articulo, Estatus
-from .interfaz_command import Command
+from .pattern_interface import Command
 from django.shortcuts import get_object_or_404
 from django.db import connection
 

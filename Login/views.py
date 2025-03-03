@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .Login_system import ProxyAutenticacion
+from .Login_pattern import ProxyAutenticacion
 from django.contrib.auth import logout as django_logout
 
 # Instanciamos el ProxyAutenticacion para utilizarlo en las vistas

@@ -1,83 +1,59 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reportes e Inventario</title>
-    <link rel="stylesheet" href="{% static 'css/reportes.css' %}" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - UACM</title>
+    <link rel="stylesheet" href="{% static 'css/reportes2.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{% static 'js/reportes.js' %}"></script>
-  </head>
-  <body>
-    <div class="container">
-      <nav class="sidebar">
-        <h1 class="logo">UACM</h1>
-        <a href="{% url 'home' %}" class="menu-item">
-          <img src="{% static 'images/home-icon.png' %}" alt="Inicio" />
-          Inicio
-        </a>
-      </nav>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <img src="{% static 'media/logouacm.jpg' %}" alt="UACM Logo" class="logo">
+            <a href="{% url 'home' %}" class="home-button">
+              <img src="https://www.svgrepo.com/show/525383/home-1.svg" alt="Menú" class="home-icon">
+          </a>
+        </div>
+        <div class="user-profile" id="userProfile">
+          <span class="user-icon">👤</span>
+          <span class="user-name">{{ user.username }}</span>
+      </div>
+    </header>
 
-      <main class="main-content">
-        <header class="header">
-          <h1 class="page-title">Reportes</h1>
-          <div class="user-profile">
-            <span>{{ user.get_full_name|default:user.username }}</span>
-            <div class="user-icon"></div>
-          </div>
-        </header>
+    <main class="main-content">
+        <div class="form-container">
+            <h1>Reportes</h1>
+            
+            <form class="report-form">
+                <div class="form-group">
+                    <label for="tipo-reporte">Tipo de Reporte</label>
+                    <select id="tipo-reporte" name="tipo-reporte" required>
+                        <!--OPCIONES-->
+                    </select>
+                </div>
 
-        <section class="form-container">
-          <form class="article-form" method="post">
-            {% csrf_token %}
-            <div class="form-group">
-              <label for="opcion">Tipo de Reporte</label>
-              <select id="opcion" name="opcion" required>
-                <option value="" disabled selected>Seleccione una opción</option>
-                {% for tipo in tipos_reporte %}
-                  <option value="{{ tipo.0 }}">{{ tipo.1 }}</option>
-                {% endfor %}
-              </select>
-            </div>
+                <div class="date-container">
+                    <div class="form-group">
+                        <label for="fecha-inicio">Fecha de Inicio</label>
+                        <input type="date" id="fecha-inicio" name="fecha-inicio" required>
+                    </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label for="fecha_inicio">Fecha de Inicio</label>
-                <input type="date" id="fecha_inicio" name="fecha_inicio" required />
-              </div>
+                    <div class="form-group">
+                        <label for="fecha-fin">Fecha de Fin</label>
+                        <input type="date" id="fecha-fin" name="fecha-fin" required>
+                    </div>
+                </div>
 
-              <div class="form-group">
-                <label for="fecha_fin">Fecha de Fin</label>
-                <input type="date" id="fecha_fin" name="fecha_fin" required />
-              </div>
-            </div>
+                <button type="submit" class="generate-btn">Generar Reporte</button>
+            </form>
+        </div>
+    </main>
 
-            <div class="form-actions">
-              <button type="submit" class="btn-submit">Generar Reporte</button>
-            </div>
-          </form>
-        </section>
-
-        <!-- Tabla para mostrar los resultados -->
-        <section class="table-container">
-          <table id="resultados-tabla">
-            <thead>
-              <tr>
-                <th>ID Solicitud</th>
-                <th>Tipo Almacén</th>
-                <th>Nombre Persona</th>
-                <th>Nombre Artículo</th>
-                <th>Cantidad</th>
-                <th>Fecha Solicitud</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Aquí se llenarán los resultados -->
-            </tbody>
-          </table>
-        </section>
-      </main>
-    </div>
-  </body>
+    <footer class="footer">
+        <p>"NADA HUMANO ME ES AJENO"</p>
+    </footer>
+</body>
 </html>
