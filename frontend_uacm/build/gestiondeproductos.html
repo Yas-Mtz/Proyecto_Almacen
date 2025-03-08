@@ -5,10 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Productos - UACM</title>
-    <link rel="stylesheet" href="{% static 'css/gestiondeproductos2.css' %}">
+    <link rel="stylesheet" href="{% static 'css/gestiondeproductos3.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{% static 'js/gestiondeproductos.js' %}"></script>
-   
 </head>
 <body>
     <header class="header">
@@ -31,10 +30,8 @@
     <main class="main-content">
         <div class="form-container">
             <h1>Gestión de Productos</h1>
-            <!--Btn -->
             <div class="search-container">
                 <input type="text" id="buscar" placeholder="Buscar artículo por ID">
-               
                 <button id="edit-btn" class="edit-btn">
                     <img src="https://static.vecteezy.com/system/resources/previews/010/146/332/non_2x/search-icon-sign-symbol-design-free-png.png" alt="edit">
                 </button>
@@ -42,8 +39,7 @@
                   
             <form method="POST" action="{% url 'gestiondeproductos' %}">
                 {% csrf_token %}
-
-                <input type="hidden" name="action" value="add"> <!-- Acción por defecto: 'add' -->
+                <input type="hidden" name="action" value="add">
 
                 <div class="form-row">
                     <div class="form-group">
@@ -51,11 +47,9 @@
                         <input type="text" id="id_articulo" name="id_articulo" required value="{{ next_id }}">
                     </div>
                     <div class="form-group">
-                        <label for="nom_articulo">Nombre</label> <!-- Corregido a nom_articulo -->
-                        <input type="text" id="nom_articulo" name="nom_articulo" required> <!-- Corregido a nom_articulo -->
+                        <label for="nom_articulo">Nombre</label>
+                        <input type="text" id="nom_articulo" name="nom_articulo" required>
                     </div>
-                   
-
                     <div class="form-group">
                         <label for="cantidad_articulo">Cantidad</label>
                         <input type="number" id="cantidad_articulo" name="cantidad_articulo" required>
@@ -76,9 +70,18 @@
                     <textarea id="descripcion_articulo" name="descripcion_articulo" rows="4" required></textarea>
                 </div>
 
-                <div id="button">
-                    <button type="submit" class="submit-btn">Guardar</button>
+                <!-- Agrega un div para el loader (el spinner) -->
+                <div id="loader" style="display: none;">
+                    <div class="spinner"></div> <!-- El spinner se mostrará mientras se carga el QR -->
                 </div>
+
+
+                <div id="button">
+                    <button type="submit" id="btn-guardar" class="submit-btn">Guardar</button>
+
+                    <button type="button" id="generate-qr-btn" class="submit-btn">Generar QR</button>
+                </div>
+                
             </form>
         </div>
 
@@ -113,7 +116,7 @@
                     // Mostrar el mensaje en una ventana emergente (alert)
                     alert("{{ message }}");
 
-                    // Mostrar el mensaje en la consola
+                    // También podrías usar console.log si deseas ver el mensaje en la consola
                     console.log("Mensaje desde Django: {{ message }}");
                 </script>
             {% endfor %}

@@ -5,14 +5,12 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from .models import Articulo, Estatus
-from .command import AgregarProductoCommand, ActualizarProductoCommand
-
+from .command import ProductoCommand
 
 # Función para generar el código QR
+
+
 def generar_qr(data, nombre_archivo):
-    """
-    Genera un código QR y lo guarda en el sistema de archivos.
-    """
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -23,29 +21,23 @@ def generar_qr(data, nombre_archivo):
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
 
-    # Directorio donde se guardarán los códigos QR generados
     qr_dir = os.path.join(settings.MEDIA_ROOT, 'qr_codes')
-    os.makedirs(qr_dir, exist_ok=True)  # Crear el directorio si no existe
+    os.makedirs(qr_dir, exist_ok=True)
     qr_path = os.path.join(qr_dir, nombre_archivo)
     img.save(qr_path)
 
-    # Devuelve la ruta relativa
-    return os.path.join('qr_codes', nombre_archivo)
-
+    return os.path.join('UACM_QR', nombre_archivo)
 
 # Vista para generar el código QR a través de la URL
+
+
 def generar_qr_view(request):
-    # Obtener los parámetros 'id' y 'nombre' de la URL
     id_articulo = request.GET.get('id')
     nombre = request.GET.get('nombre')
 
-    print(f'Parámetros recibidos: id={id_articulo}, nombre={nombre}')
-
-    # Si faltan parámetros, devolver error 400
     if not id_articulo or not nombre:
         return HttpResponse('Faltan parámetros', status=400)
 
-    # Generar el código QR
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -56,16 +48,15 @@ def generar_qr_view(request):
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
 
-    # Devolver la imagen QR como respuesta
     response = HttpResponse(content_type="image/png")
     img.save(response, "PNG")
+    response['Cache-Control'] = 'public, max-age=3600'
     return response
 
 
 @login_required(login_url='')
 def gestiondeproductos(request):
     if request.method == 'POST':
-        # Procesamiento de formulario para agregar o actualizar producto
         id_articulo = request.POST.get('id_articulo')
         nom_articulo = request.POST.get('nom_articulo')
         desc_articulo = request.POST.get('descripcion_articulo')
@@ -76,32 +67,17 @@ def gestiondeproductos(request):
         try:
             cantidad = int(cantidad_articulo)
             if cantidad <= 0:
-                return JsonResponse({'status': 'error', 'message': "La cantidad debe ser un número mayor a cero."})
+                return JsonResponse({'status': 'error', 'message': "La cantidad debe ser mayor a cero."})
         except (ValueError, TypeError):
-            return JsonResponse({'status': 'error', 'message': "La cantidad debe ser un número entero válido."})
+            return JsonResponse({'status': 'error', 'message': "Cantidad inválida."})
 
-        if action == 'add':
-            # Generar código QR automáticamente
-            qr_nombre = f'{id_articulo}_{nom_articulo}.png'
-            qr_path = generar_qr(f'{id_articulo} - {nom_articulo}', qr_nombre)
+        articulo = Articulo.objects.filter(id_articulo=id_articulo).first()
 
-            # Crear el producto con el código QR generado
-            comando = AgregarProductoCommand(
-                id_articulo, nom_articulo, desc_articulo, cantidad, id_estatus, qr_path)
+        qr_path = articulo.qr_articulo if articulo and articulo.qr_articulo else generar_qr(
+            f'{id_articulo} - {nom_articulo}', f'{id_articulo}_{nom_articulo}.png')
 
-        elif action == 'update':
-            articulo = Articulo.objects.filter(id_articulo=id_articulo).first()
-            if articulo:
-                # Si el producto ya tiene un QR, se usa, sino se genera uno nuevo
-                qr_path = articulo.qr_articulo if articulo.qr_articulo else generar_qr(
-                    f'{id_articulo} - {nom_articulo}', f'{id_articulo}_{nom_articulo}.png')
-                comando = ActualizarProductoCommand(
-                    id_articulo, nom_articulo, desc_articulo, cantidad, id_estatus, qr_path)
-            else:
-                return JsonResponse({'status': 'error', 'message': 'Producto no encontrado para actualizar.'})
-
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Acción no válida'})
+        comando = ProductoCommand(
+            id_articulo, nom_articulo, desc_articulo, cantidad, id_estatus, qr_path)
 
         try:
             mensaje_estado = comando.execute()
@@ -110,7 +86,6 @@ def gestiondeproductos(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
     elif request.method == 'GET':
-        # Lógica de búsqueda para obtener producto por id_articulo
         id_articulo = request.GET.get('id_articulo')
         if id_articulo:
             articulo = Articulo.objects.filter(id_articulo=id_articulo).first()
@@ -118,20 +93,14 @@ def gestiondeproductos(request):
                 return JsonResponse({
                     'status': 'success',
                     'nombre_articulo': articulo.nom_articulo,
-                    # Cambiado de descripcion_articulo a desc_articulo
                     'descripcion_articulo': articulo.desc_articulo,
                     'cantidad_articulo': articulo.cantidad,
                     'id_estatus': articulo.id_estatus.id_estatus,
                     'qr_articulo': articulo.qr_articulo,
                 })
-            else:
-                return JsonResponse({'status': 'error', 'message': 'El artículo no existe en la base de datos.'})
+            return JsonResponse({'status': 'error', 'message': 'El artículo no existe.'})
 
-        next_id = (Articulo.objects.order_by(
-            '-id_articulo').first().id_articulo + 1) if Articulo.objects.exists() else 1
+        next_id = Articulo.objects.order_by(
+            '-id_articulo').first().id_articulo + 1 if Articulo.objects.exists() else 1
         estatus_list = Estatus.objects.all()
-
-        return render(request, 'gestiondeproductos.html', {
-            'estatus_list': estatus_list,
-            'next_id': next_id
-        })
+        return render(request, 'gestiondeproductos.html', {'estatus_list': estatus_list, 'next_id': next_id})

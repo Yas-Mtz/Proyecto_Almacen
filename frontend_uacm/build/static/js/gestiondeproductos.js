@@ -1,5 +1,4 @@
 $(document).ready(function () {
-    
 
     /**
      * Actualiza la imagen del código QR y la información relacionada con un producto.
@@ -25,6 +24,11 @@ $(document).ready(function () {
                     // Mostrar la imagen del QR
                     $('#qr-image').attr('src', qrImageUrl).show();
 
+                    // Ocultar el loader después de un retraso
+                    setTimeout(function () {
+                        $('#loader').hide(); // Oculta el loader después de 2 segundos
+                    }, 2000);
+
                     // Configurar el botón de descarga del QR
                     $('#download-btn').off('click').on('click', function () {
                         const a = document.createElement('a');
@@ -37,6 +41,7 @@ $(document).ready(function () {
                 })
                 .catch(error => {
                     console.error('Error al generar el QR:', error); // Manejo de errores
+                    $('#loader').hide(); // Ocultar el loader en caso de error
                 });
         }
     }
@@ -44,13 +49,15 @@ $(document).ready(function () {
     /**
      * Maneja el evento de clic en el botón 'edit-btn'. 
      * Obtiene la información del producto y actualiza los campos del formulario y la imagen del QR.
-     * Si no se ha seleccionado un ID de producto, limpia los campos del formulario.
      */
     $('#edit-btn').on('click', function () {
         var id_articulo = $('#buscar').val(); // Obtener el ID del artículo desde el input 'buscar'
         console.log('ID del artículo seleccionado:', id_articulo);
 
         if (id_articulo) {
+            // Mostrar el loader mientras se realiza la solicitud
+            $('#loader').show(); // Muestra el loader
+
             // Realizar una solicitud AJAX para obtener los datos del producto
             $.ajax({
                 url: '/GestiondeProductos/', // URL de la solicitud
@@ -59,37 +66,35 @@ $(document).ready(function () {
                 success: function (response) {
                     console.log('Respuesta del servidor:', response);
 
-                    // Si la respuesta es exitosa, actualizamos los campos del formulario
                     if (response.status === 'success') {
                         $('#id_articulo').val(id_articulo);
                         $('#nom_articulo').val(response.nombre_articulo);
                         $('#descripcion_articulo').val(response.descripcion_articulo);
-                        $('#estatus').val(response.id_estatus);
+                        $('#estatus').val(response.id_estatus); // Esto debería funcionar correctamente
                         $('#id_estatus').val(response.id_estatus);
-
-                        // Guardamos la cantidad actual del artículo
-                        cantidadActual = parseInt(response.cantidad_articulo) || 0;
-                        $('#cantidad_actual').text(`Cantidad actual: ${cantidadActual}`); // Mostrar la cantidad actual en una etiqueta
-
-                        // Establecemos la acción como 'update' para indicar que es una actualización
                         $('input[name="action"]').val('update');
-                        // Actualizar el QR
                         actualizarQR(id_articulo, response.nombre_articulo);
-                        alert(response.message); // Mostrar mensaje de éxito
+                        alert(response.message); // Muestra el mensaje de éxito como alerta
                     } else {
-                        // Si no se encuentra el artículo, habilitamos el campo para agregarlo como nuevo
                         $('#cantidad_articulo').prop('disabled', false);
                         $('input[name="action"]').val('add');
-                        alert(response.message);
+                        alert(response.message); // Muestra el mensaje de error como alerta
                     }
+
+                    // Ocultar el loader después de la respuesta con retraso
+                    setTimeout(function () {
+                        $('#loader').hide(); // Oculta el loader después de 2 segundos
+                    }, 2000);
                 },
                 error: function () {
                     console.log('Error al consultar el artículo.');
-                    alert('Error al consultar el artículo.'); // Error al hacer la solicitud
+                    alert('Error al consultar el artículo.');
+
+                    // Ocultar el loader en caso de error
+                    $('#loader').hide();
                 }
             });
         } else {
-            // Si no se ha seleccionado un ID, limpiamos los campos del formulario
             $('#nom_articulo, #descripcion_articulo, #cantidad_articulo, #id_estatus').val('');
             $('#qr-image').attr('src', '').hide();
             $('input[name="action"]').val('add');
@@ -97,26 +102,27 @@ $(document).ready(function () {
     });
 
     /**
-     * Maneja el evento de clic en el botón 'btn-guardar'.
-     * Recoge los datos del formulario y los envía al servidor para guardar o actualizar el artículo.
+     * Maneja el evento de clic en el botón 'btn-guardar' para guardar o actualizar un artículo.
      */
     $('#btn-guardar').on('click', function (event) {
-        event.preventDefault(); // Evita el comportamiento por defecto del formulario
+        event.preventDefault();
         console.log("Valor de nom_articulo antes de enviar:", $('#nom_articulo').val());
 
-        // Verificar si la cantidad es válida
-        if (totalCantidad < 0) {
-            alert("La cantidad no puede ser negativa.");
+        // Obtener el valor de cantidad y convertirlo a entero
+        var cantidad = parseInt($('#cantidad_articulo').val(), 10);
+        
+        // Verificación de la cantidad para asegurarse de que sea un número entero válido y no negativo
+        if (isNaN(cantidad) || cantidad < 0) {
+            alert("La cantidad debe ser un número entero válido.");
             return;
         }
 
-        // Datos a enviar al servidor
         var data = {
             id_articulo: $('#id_articulo').val(),
             nom_articulo: $('#nom_articulo').val(),
             descripcion_articulo: $('#descripcion_articulo').val(),
-            cantidad_articulo: totalCantidad, // Enviar la cantidad total
-            id_estatus: $('#id_estatus').val(),
+            id_estatus: $('#estatus').val(),
+            cantidad_articulo: cantidad, // Agregar la cantidad a los datos
             csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val(),
             action: $('input[name="action"]').val()
         };
@@ -124,37 +130,68 @@ $(document).ready(function () {
         console.log('Datos a enviar:', data);
 
         // Verificar que todos los campos estén completos
-        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.cantidad_articulo || !data.id_estatus) {
+        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.id_estatus || isNaN(data.cantidad_articulo)) {
             alert("Por favor, complete todos los campos.");
             return;
         }
 
-        // Enviar los datos al servidor usando AJAX
         $.ajax({
-            url: '/GestiondeProductos/', // URL de la solicitud
+            url: '/GestiondeProductos/',
             method: 'POST',
-            data: data, // Datos a enviar
+            data: data,
             success: function (response) {
                 console.log('Respuesta del servidor al guardar:', response);
-                
-                // Si la respuesta es exitosa, actualizamos el QR y limpiamos los campos
+
                 if (response.status === 'success') {
-                    alert(response.message); // Mostrar mensaje de éxito
-                    actualizarQR(data.id_articulo, data.nom_articulo); // Actualizar el QR
-                    // Limpiar los campos del formulario
-                    $('#nom_articulo').val('');
-                    $('#descripcion_articulo').val('');
-                    $('#cantidad_articulo').val('');
-                    $('#id_estatus').val('');
-                    $('input[name="action"]').val('add');
+                    alert(response.message); // Muestra el mensaje de éxito como alerta
+                    actualizarQR(data.id_articulo, data.nom_articulo);
+                    $('#nom_articulo, #descripcion_articulo, #cantidad_articulo').val(''); // Limpiar campos
+                    $('#qr-image').attr('src', '').hide(); // Limpiar la imagen QR
+                    $('input[name="action"]').val('add'); // Preparar para una nueva adición
+                    $('#estatus').val(''); // Limpiar el campo de estatus
                 } else {
-                    alert(response.message); // Mostrar mensaje de error
+                    alert(response.message); // Muestra el mensaje de error como alerta
                 }
             },
             error: function () {
                 console.log('Error al registrar o actualizar el artículo.');
-                alert('Error al registrar o actualizar el artículo.'); // Error al hacer la solicitud
+                alert('Error al registrar o actualizar el artículo.');
             }
         });
+    });
+
+    /**
+     * Maneja el evento de clic en el botón 'generate-qr-btn' para generar el QR.
+     */
+    $('#generate-qr-btn').on('click', function () {
+        var data = {
+            id_articulo: $('#id_articulo').val(),
+            nom_articulo: $('#nom_articulo').val(),
+            descripcion_articulo: $('#descripcion_articulo').val(),
+            id_estatus: $('#estatus').val(), // Utiliza el campo correcto para obtener el valor de id_estatus
+        };
+
+        console.log('Datos a enviar:', data);
+
+        // Validar que los campos no estén vacíos
+        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.id_estatus) {
+            alert("Por favor, ingresa los datos solicitados antes de generar el QR");
+            return;
+        }
+
+        // Mostrar el loader mientras se genera el QR
+        $('#loader').show(); // Muestra el loader
+
+        // Actualizar la descripción en la sección del QR
+        $('#qr-id').text(data.id_articulo); // Usa el valor correcto de 'data'
+        $('#qr-nombre').text(data.nom_articulo); // Usa el valor correcto de 'data'
+
+        // Llamar a la función para generar y mostrar el QR
+        actualizarQR(data.id_articulo, data.nom_articulo);
+
+        // Ocultar el loader después de un retraso
+        setTimeout(function () {
+            $('#loader').hide(); // Oculta el loader después de 2 segundos
+        }, 100);
     });
 });

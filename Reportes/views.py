@@ -1,35 +1,63 @@
-from django.http import JsonResponse
+# Reportes/views.py
+
 from django.shortcuts import render
 from django.db import connection
+from django.http import JsonResponse
+from datetime import datetime
+from .pattern import GeneradorDeReportes
 
 
-def reportes(request):
-    # Consulta de tipos de reporte
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT id_reporte, tip_report FROM tipo_reporte")
-        tipos_reporte = cursor.fetchall()
-
-    return render(request, 'reportes.html', {'tipos_reporte': tipos_reporte})
+# Vista para generar reportes
 
 
 def generar_reporte(request):
     if request.method == 'POST':
-        tipo_reporte = request.POST.get('opcion')
-        fecha_inicio = request.POST.get('fecha_inicio')
-        fecha_fin = request.POST.get('fecha_fin')
+        tipo_reporte = request.POST.get(
+            'tipo-reporte')  # "productos" o "inventario"
+        fecha_inicio = request.POST.get('fecha-inicio')
+        fecha_fin = request.POST.get('fecha-fin')
 
-        if not tipo_reporte or not fecha_inicio or not fecha_fin:
-            return JsonResponse({'error': 'Faltan parámetros en la solicitud'}, status=400)
+        # Puedes agregar más lógica aquí si deseas aplicar filtros o formatos
+        aplicar_filtro = False  # Por ejemplo, si hay un filtro
+        aplicar_formato = request.POST.get('formato')  # Puede ser PDF o Excel
 
-        # procedimiento almacenado
-        with connection.cursor() as cursor:
-            cursor.callproc('GenerarReportes', [
-                            tipo_reporte, fecha_inicio, fecha_fin])
+        generador = GeneradorDeReportes(
+            tipo_reporte, aplicar_filtro, aplicar_formato)
+        data = {
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+        }
 
-            # Obtener los resultados
-            resultados = cursor.fetchall()
+        # Generar el reporte usando el comando correspondiente
+        resultado = generador.generar(data)
 
-        if resultados:
-            return JsonResponse({'resultados': resultados})
-        else:
-            return JsonResponse({'error': 'No se encontraron datos para el reporte'}, status=404)
+        # Mostrar el reporte (puedes devolverlo como un archivo o mostrar los resultados)
+        return render(request, 'reporte_generado.html', {'resultado': resultado})
+
+    # Si no es POST, simplemente mostrar el formulario
+    return render(request, 'reportes.html')
+
+# Vista para registrar un artículo
+
+
+def registrar_articulo(request):
+    if request.method == 'POST':
+        # Obtener datos del formulario
+        id_articulo = request.POST.get('id_articulo')
+        cantidad = request.POST.get('cantidad')
+
+        # Llamar al procedimiento almacenado para registrar el artículo
+        try:
+            with connection.cursor() as cursor:
+                cursor.callproc('RegistrarArticulo', [id_articulo, cantidad])
+            return JsonResponse({"status": "success", "message": "Artículo registrado correctamente"})
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)})
+
+    return render(request, 'registrar_articulo.html')
+
+
+# Vista para mostrar todos los reportes disponibles
+def mostrar_reportes(request):
+    # Aquí se muestra la plantilla 'reportes.html'
+    return render(request, 'reportes.html')
