@@ -28,16 +28,16 @@
             <h1>Reportes</h1>
             
             <!-- Formulario corregido con la URL Django correcta -->
-            <form method="POST" id="reporte-form">
+            <form method="POST" id="reporte-form" action="{% url 'generar_reporte'}">
 
                 {% csrf_token %}
                 
                 <!-- Campos de fecha -->
                 <label for="fecha_inicio">Fecha de Inicio:</label>
-                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+                <input type="date" id="fecha_inicio" name="fecha_inicio">
             
                 <label for="fecha_fin">Fecha de Fin:</label>
-                <input type="date" id="fecha_fin" name="fecha_fin" required>
+                <input type="date" id="fecha_fin" name="fecha_fin" >
             
                 <!-- Campo de formato -->
                 <label for="formato">Formato:</label>

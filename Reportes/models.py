@@ -1,12 +1,13 @@
 # Importamos el modelo Articulo de GestiondeProductos
-from GestiondeProductos.models import Articulo, Estatus
+from GestiondeProductos.models import Articulo
 from django.db import models
+from django.core.exceptions import ValidationError
 
 # Modelo para la tabla tipo_almacen
 
 
 class TipoAlmacen(models.Model):
-    tipo_almacen = models.CharField(max_length=50)
+    tipo_almacen = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
         return self.tipo_almacen
@@ -17,13 +18,13 @@ class TipoAlmacen(models.Model):
 
 # Modelo para la tabla almacen
 class Almacen(models.Model):
-    tipo_almacen = models.ForeignKey(TipoAlmacen, on_delete=models.CASCADE)
+    tipo_almacen = models.ForeignKey(TipoAlmacen, on_delete=models.PROTECT)
     direccion = models.CharField(max_length=250)
     correo = models.EmailField(null=True, blank=True)
     telefono = models.CharField(max_length=10, null=True, blank=True)
 
     def __str__(self):
-        return f"Almacen {self.id_almacen} - {self.direccion}"
+        return f"Almacen {self.id} - {self.direccion}"
 
     class Meta:
         db_table = 'almacen'
@@ -31,9 +32,10 @@ class Almacen(models.Model):
 
 # Modelo para la tabla solicitudes en Reportes
 class Solicitudes(models.Model):
-    id_almacen = models.ForeignKey(Almacen, on_delete=models.CASCADE)
-    # Usamos el modelo Articulo de GestiondeProductos
-    id_articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE)
+    id_solicitud = models.AutoField(primary_key=True)
+    id_almacen = models.IntegerField()
+    id_personal = models.IntegerField()
+    id_articulo = models.IntegerField()
     cantidad = models.IntegerField()
     fecha_sol = models.DateTimeField()
 
@@ -45,11 +47,12 @@ class Solicitudes(models.Model):
             articulo.save()
             super().save(*args, **kwargs)
         else:
-            raise ValueError(
-                "No hay suficiente cantidad en inventario para realizar la solicitud.")
+            raise ValidationError(
+                "No hay suficiente cantidad en inventario para realizar la solicitud."
+            )
 
     def __str__(self):
-        return f"Solicitud {self.id_solicitud} - Articulo: {self.id_articulo.nom_articulo}"
+        return f"Solicitud {self.id} - Artículo: {self.id_articulo.nom_articulo}"
 
     class Meta:
         db_table = 'solicitudes'

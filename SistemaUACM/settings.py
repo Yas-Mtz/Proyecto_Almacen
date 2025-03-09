@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'SistemaUACM',
     'Login',
     'GestiondeProductos',
-    'Reportes'
+    'Reportes',
+    'Solicitudes'
 ]
 
 MIDDLEWARE = [
