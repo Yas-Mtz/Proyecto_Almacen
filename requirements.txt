@@ -1,5 +1,9 @@
 Django>=4.0,<5.0
 mysqlclient>=2.0
 django-environ
-qrcode[pil] # funciona para QR
-python-dotenv # variables globales
+qrcode[pil]
+python-dotenv
+#cambios
+xlwt==1.3.0
+reportlab
+pandas

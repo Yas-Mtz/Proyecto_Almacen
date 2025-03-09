@@ -136,3 +136,4 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 3600  # segundos
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Configuración de archivos multimedia (QR, imágenes, etc.)

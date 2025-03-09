@@ -11,37 +11,35 @@
 </head>
 <body>
     <header class="header">
-        
         <div class="header-left">
             <img src="{% static 'media/logouacm.jpg' %}" alt="UACM Logo" class="logo">
             <a href="{% url 'home' %}" class="home-button">
               <img src="https://www.svgrepo.com/show/525383/home-1.svg" alt="Menú" class="home-icon">
-          </a>
+            </a>
         </div>
         <div class="user-profile" id="userProfile">
-          <span class="user-icon">👤</span>
-          <span class="user-name">{{ user.username }}</span>
-      </div>
+            <span class="user-icon">👤</span>
+            <span class="user-name">{{ user.username }}</span>
+        </div>
     </header>
 
     <main class="main-content">
         <div class="form-container">
             <h1>Reportes</h1>
             
-            <form method="POST" action="{% url 'generar_reporte' %}">
+            <!-- Formulario corregido con la URL Django correcta -->
+            <form method="POST" id="reporte-form">
+
                 {% csrf_token %}
-                <label for="tipo-reporte">Tipo de Reporte:</label>
-                <select id="tipo-reporte" name="tipo-reporte" required>
-                    <option value="productos">Reporte de Productos</option>
-                    <option value="inventario">Reporte de Inventario</option>
-                </select>
+                
+                <!-- Campos de fecha -->
+                <label for="fecha_inicio">Fecha de Inicio:</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
             
-                <label for="fecha-inicio">Fecha de Inicio:</label>
-                <input type="date" id="fecha-inicio" name="fecha-inicio" required>
+                <label for="fecha_fin">Fecha de Fin:</label>
+                <input type="date" id="fecha_fin" name="fecha_fin" required>
             
-                <label for="fecha-fin">Fecha de Fin:</label>
-                <input type="date" id="fecha-fin" name="fecha-fin" required>
-            
+                <!-- Campo de formato -->
                 <label for="formato">Formato:</label>
                 <select id="formato" name="formato">
                     <option value="PDF">PDF</option>
@@ -50,6 +48,23 @@
             
                 <button type="submit">Generar Reporte</button>
             </form>
+
+            <!-- Sección para mostrar resultados -->
+            <div id="resultados-container">
+                <h2>Resultados del Reporte</h2>
+                <table id="resultados-tabla">
+                    <thead>
+                        <tr>
+                            <th>Columna 1</th>
+                            <th>Columna 2</th>
+                            <th>Columna 3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Aquí se llenarán los resultados con AJAX -->
+                    </tbody>
+                </table>
+            </div>
             
         </div>
     </main>
