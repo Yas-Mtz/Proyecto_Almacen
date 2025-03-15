@@ -27,9 +27,8 @@
         <div class="form-container">
             <h1>Reportes</h1>
             
-            <!-- Formulario corregido con la URL Django correcta -->
-            <form method="POST" id="reporte-form" action="{% url 'generar_reporte'}">
-
+            <!-- Formulario para generar el reporte -->
+            <form id="reporte-form">
                 {% csrf_token %}
                 
                 <!-- Campos de fecha -->
@@ -37,7 +36,7 @@
                 <input type="date" id="fecha_inicio" name="fecha_inicio">
             
                 <label for="fecha_fin">Fecha de Fin:</label>
-                <input type="date" id="fecha_fin" name="fecha_fin" >
+                <input type="date" id="fecha_fin" name="fecha_fin">
             
                 <!-- Campo de formato -->
                 <label for="formato">Formato:</label>
@@ -46,7 +45,8 @@
                     <option value="Excel">Excel</option>
                 </select>
             
-                <button type="submit">Generar Reporte</button>
+               <button id="generar-reporte-btn">Generar Reporte</button>
+
             </form>
 
             <!-- Sección para mostrar resultados -->
@@ -64,10 +64,11 @@
                         <!-- Aquí se llenarán los resultados con AJAX -->
                     </tbody>
                 </table>
+                
             </div>
-            
         </div>
     </main>
+    
 
     <footer class="footer">
         <p>"NADA HUMANO ME ES AJENO"</p>
