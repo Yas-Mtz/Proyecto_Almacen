@@ -1,60 +1,71 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UACM Login</title>
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
-
-  </head>
-  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
     <div class="login-container">
-      <div class="login-box">
+        <!-- Mensaje de bienvenida -->
+        <h2 class="welcome-message">¡Bienvenido al sistema!</h2>
+
         <div class="logo">
-          
-          <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM">
-        </div>
-        <div class="nombre-universidad">
-          <h1>UACM</h1>
+            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
         </div>
 
-        <!-- Formulario de Login -->
         <form method="POST" action="{% url 'login' %}">
-
-          {% csrf_token %}
-          <div class="form-group">
-            <label for="username">Usuario</label>
-            <input type="text" name="username" id="username" required>
-          </div>
-
-          <div class="form-group">
-            <label for="password">Contraseña</label>
-            <input type="password" name="password" id="password" required>
-          </div>
-
-          <div id="button">
-            
-            <button type="submit" class="submit-btn">Entrar</button>
-          </div>
-
-          <!-- Mostrar los mensajes de error -->
-          {% if messages %}
-            <div class="messages">
-              <!-- Mensajes emergentes y en la consola -->
-              {% for message in messages %}
-                <script type="text/javascript">
-                  // Mostrar el mensaje en una ventana emergente (alert)
-                  alert("{{ message }}");
-
-                  // Mostrar el mensaje en la consola
-                  console.log("Mensaje desde Django: {{ message }}");
-                </script>
-              {% endfor %}
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username"><i class="fas fa-user"></i> Usuario</label>
+                <div class="sec-2">
+                    <ion-icon name="mail-outline"></ion-icon>
+                    <input type="text" name="username" id="username" required placeholder="Ingresa tu usuario">
+                </div>
             </div>
-          {% endif %}
+
+            <div class="form-group password-input">
+                <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
+                <div class="sec-2">
+                    <input class="pas" type="password" name="password" id="password" required placeholder="············">
+                    <button type="button" class="toggle-password">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="login">Ingresar</button>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <script type="text/javascript">
+                    alert("{{ message }}");
+                </script>
+                {% endfor %}
+            </div>
+            {% endif %}
         </form>
-      </div>
+
     </div>
-  </body>
+
+    <script>
+        // Mostrar / Ocultar contraseña
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function () {
+                let passwordInput = this.previousElementSibling;
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    passwordInput.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
+        });
+    </script>
+</body>
 </html>

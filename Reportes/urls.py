@@ -5,8 +5,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('', views.reportes, name='reportes'),
-    path('generar-reporte/', views.generar_reporte,
-         name='generar_reporte'),  # Ruta añadida
+    path('', views.reportes, name='reportes'),  # Ruta por defecto para acceder a la página de reportes
+    path('reporte_solicitudes/', views.reporte_solicitudes, name='reporte_solicitudes'),
+    path('inventario/', views.inventario, name='inventario'),
+]
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

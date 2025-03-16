@@ -1,140 +1,146 @@
-/*css login */
-
-:root {
-    --primary-color: #4a1c2c;
-    --secondary-color: #ffffff;
-    --button-color: #3a1522;
-    --text-color: #333333;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-}
-
+/* Estilos generales */
 * {
-    margin: 0;
-    padding: 0;
+    font-family: 'Inter', sans-serif;
     box-sizing: border-box;
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background-color: var(--primary-color);
-    min-height: 100vh;
+    user-select: none;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    background-color: #5c0a0a70;
+    height: 100vh;
+    margin: 0;
+    text-align: center; /* Asegura que todo el texto esté centrado */
 }
 
 .login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Centra el contenido dentro del contenedor */
+    background: #40130f;
+    padding: 2em;
+    border-radius: 25px;
+    box-shadow: 0 0 2em #40130f;
+    text-align: center;
     width: 100%;
-    max-width: 400px;
-    padding: 20px;
+    max-width: 400px; /* Opcional: limita el ancho del contenedor */
 }
 
-.login-box {
-    background-color: var(--secondary-color);
-    border-radius: 15px;
-    padding: 30px;
-    box-shadow: 0 8px 16px var(--shadow-color);
-}
-
-.logo {
-    text-align: center;
-    margin-top: -70px; 
-    margin-bottom: 30px;
-}
-
-.logo img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-}
-
-.nombre-universidad {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.nombre-universidad h1 {
-    color: var(--primary-color);
-    font-size: 24px;
-    margin-bottom: 5px;
-}
-
-.nombre-universidad p {
-    color: var(--text-color);
-    font-size: 14px;
-}
-
+/* Asegurar que los campos de entrada estén centrados */
 .form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--text-color);
-    font-size: 14px;
-}
-
-.form-group input {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 14px;
+}
+
+/* Centrar los campos de entrada y el botón */
+.sec-2, .login {
+    margin: 0 auto;
+}
+
+/* Logo */
+.circular-logo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Mensaje de bienvenida */
+.welcome-message {
+    font-size: 1.5em;
+    color: #ffffff;
+    font-weight: bold;
+    margin-bottom: 1.5em;
 }
 
 
-.password-input {
-    position: relative;
+.sec-2 {
+    background: #ffffff;
+    box-shadow: 0 0 0.5em hsl(231deg 62% 94%);
+    padding: 0.5em;
     display: flex;
     align-items: center;
+    border-radius: 20px;
+    color: #460c04;
+    width: 90%;
+    position: relative;
 }
 
+.sec-2 input {
+    outline: none;
+    border: none;
+    font-size: 1em;
+    background: transparent;
+    color: #000;
+    padding: 0.5em;
+    width: 100%;
+}
+
+/* Botón de mostrar/ocultar contraseña */
 .toggle-password {
     position: absolute;
     right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
     background: none;
     border: none;
-    cursor: pointer;
-    padding: 0;
+    color: rgba(0, 0, 0, 0.7);
 }
 
-.toggle-password img {
-    width: 20px;
-    height: 20px;
-    opacity: 0.6;
+/* Etiquetas */
+.form-group label {
+    color: #ffffff;
+    font-weight: bold;
+    margin-top: 2em;
+    margin-bottom: 1em; /* Aumenta la separación con el campo de entrada */
 }
 
-.submit-btn {
-    width: 100%;
-    padding: 12px;
-    background-color: var(--button-color);
-    color: var(--secondary-color);
+
+/* Botón de login */
+.login {
+    padding: 1em;
+    background: #ad3328;
+    color: #f5f2f2;
     border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    font-weight: bold; /* Hacer el texto en negrita */
-    text-transform: uppercase; /* Texto en mayúsculas */
+    border-radius: 30px;
+    font-weight: 500;
+    width: 90%;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease; /* Animaciones */
+    margin-top: 1.5em;
+    transition: transform 0.3s ease, background-color 0.3s ease;
 }
 
-.submit-btn:hover {
-    background-color: var(--primary-color);
-    transform: scale(1.05); /* Efecto de aumento de tamaño */
+.login:hover {
+    transform: scale(1.05);
+    background-color: #b7002d;
+}
+.flip-diagonal-1-tr {
+    -webkit-animation: flip-diagonal-1-tr 400ms cubic-bezier(0.455, 0.030, 0.515, 0.955) alternate-reverse backwards;
+            animation: flip-diagonal-1-tr 400ms cubic-bezier(0.455, 0.030, 0.515, 0.955) alternate-reverse backwards;
 }
 
-.submit-btn:active {
-    transform: scale(0.98); /* Efecto de presión */
-}
-
-
-@media (max-width: 480px) {
-    .login-container {
-        padding: 10px;
-    }
+.circular-logo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
     
-    .login-box {
-        padding: 20px;
+    /* Prueba de animación simple */
+    animation: girar 10s;
+}
+
+@keyframes girar {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
     }
 }
+

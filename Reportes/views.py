@@ -1,84 +1,64 @@
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-from .pattern_interface import ReporteSolicitudes, ReporteInventario, ExportadorReporteDecorator
-from django.utils.dateparse import parse_datetime
-from django.utils import timezone
-import os
-
+from django.db import connection
+from datetime import datetime
 
 def reportes(request):
     """Renderiza la página de reportes"""
     return render(request, 'reportes.html')
 
-
 @csrf_exempt
-def generar_reporte(request):
-    """Genera el reporte en base a las fechas y formato seleccionado"""
-    if request.method == "POST":
-        fecha_inicio_str = request.POST.get("fecha_inicio")
-        fecha_fin_str = request.POST.get("fecha_fin")
-        formato = request.POST.get("formato")
+def reporte_solicitudes(request):
+    if request.method == 'POST':
+        fecha_inicio = request.POST.get('fecha_inicio')
+        fecha_fin = request.POST.get('fecha_fin')
 
-        # Depuración de los parámetros recibidos
-        print(
-            f"Recibidos fecha_inicio: {fecha_inicio_str}, fecha_fin: {fecha_fin_str}, formato: {formato}")
+        # Convertir las fechas a formato datetime
+        fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d')
 
-        # Validación: si hay una fecha pero no la otra, muestra un mensaje de error
-        if (fecha_inicio_str and not fecha_fin_str) or (fecha_fin_str and not fecha_inicio_str):
-            return JsonResponse({"mensaje": "Debe ingresar ambas fechas o ninguna."})
+        # Llamar al procedimiento almacenado para el reporte de solicitudes
+        with connection.cursor() as cursor:
+            cursor.callproc('GenerarReporteSolicitudes', [fecha_inicio, fecha_fin])
+            results = cursor.fetchall()
 
-        # Parsear las fechas a objetos datetime
-        fecha_inicio = parse_datetime(
-            fecha_inicio_str) if fecha_inicio_str else None
-        fecha_fin = parse_datetime(fecha_fin_str) if fecha_fin_str else None
+        # Imprimir los resultados en la terminal para depurar
+        print("Resultados de reporte_solicitudes:", results)
 
-        # Verificar que las fechas sean correctas
-        if fecha_inicio and fecha_fin:
-            if timezone.is_naive(fecha_inicio) or timezone.is_naive(fecha_fin):
-                return JsonResponse({"mensaje": "Las fechas deben ser con zona horaria."})
+        # Convertir los resultados a una lista de diccionarios (si es necesario)
+        productos = []
+        for result in results:
+            productos.append({
+                'id_solicitud': result[0],
+                'almacen_direccion': result[1],
+                'nom_articulo': result[2],
+                'cantidad': result[3],
+                'nombre_persona': result[4],
+                'fecha_sol': result[5].strftime('%Y-%m-%d'),
+            })
 
-        # Determina el tipo de reporte
-        if fecha_inicio and fecha_fin:
-            reporte = ReporteSolicitudes()
-        else:
-            reporte = ReporteInventario()
+        # Retornar los datos como JSON para que el frontend los consuma
+        return JsonResponse({'productos': productos})
 
-        # Generación del reporte
-        try:
-            datos = reporte.generar_reporte(fecha_inicio, fecha_fin)
-            print(f"Datos generados: {datos}")
-            if not datos:
-                return JsonResponse({"mensaje": "No se encontraron datos para el reporte."})
+def inventario(request):
+    """Obtener los datos de inventario y devolverlos en formato JSON"""
+    # Llamar al procedimiento almacenado para obtener todos los artículos
+    with connection.cursor() as cursor:
+        cursor.callproc('GenerarInventario')
+        results = cursor.fetchall()
 
-            # Si se seleccionó un formato de exportación
-            if formato in ["PDF", "CSV"]:
-                # Aplica decorador para exportar el reporte en el formato deseado
-                reporte = ExportadorReporteDecorator(reporte, formato)
+    # Imprimir los resultados en la terminal para depurar
+    print("Resultados de inventario:", results)
 
-                # Genera el archivo del reporte (esto debería retornar un HttpResponse con el archivo)
-                response = reporte.generar_reporte(fecha_inicio, fecha_fin)
+    # Convertir los resultados a una lista de diccionarios
+    articulos = []
+    for result in results:
+        articulos.append({
+            'nom_articulo': result[0],
+            'desc_articulo': result[1],
+            'cantidad': result[2],
+            'nomb_estatus': result[3]
+        })
 
-                # Verifica si la respuesta es válida (un archivo generado)
-                if isinstance(response, HttpResponse):
-                    # Establece el tipo de contenido para forzar la descarga
-                    if formato == "PDF":
-                        response['Content-Type'] = 'application/pdf'
-                        response['Content-Disposition'] = 'attachment; filename="reporte.pdf"'
-                    elif formato == "CSV":
-                        response['Content-Type'] = 'text/csv'
-                        response['Content-Disposition'] = 'attachment; filename="reporte.csv"'
-
-                    return response  # Regresa el archivo generado directamente
-
-                return JsonResponse({"mensaje": "Ocurrió un error al generar el archivo."})
-
-            # Si no se seleccionó formato de exportación, solo se retornan los datos en JSON
-            return JsonResponse({"datos": list(datos)})
-
-        except Exception as e:
-            # Captura errores en la generación del reporte
-            print(f"Error al generar el reporte: {e}")
-            return JsonResponse({"mensaje": f"Ocurrió un error al generar el archivo: {str(e)}"})
-
-    return render(request, "reportes.html")
+    return JsonResponse({'articulos': articulos})
