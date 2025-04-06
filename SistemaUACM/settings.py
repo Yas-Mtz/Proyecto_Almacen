@@ -138,3 +138,12 @@ SESSION_COOKIE_AGE = 3600  # segundos
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # Configuración de archivos multimedia (QR, imágenes, etc.)
+
+# AGREGADO EN MIGRACIONES
+# Desactivar migraciones para estas apps
+MIGRATION_MODULES = {
+    'SistemaUACM': None
+}
+
+# Si usas el modelo Personal para autenticación
+#AUTH_USER_MODEL = 'SistemaUACM.Personal'

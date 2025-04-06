@@ -4,15 +4,12 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
-from .models import Articulo, Estatus
+from .models import Producto, Estatus
 from .command import ProductoCommand
 
 # Función para generar un código QR a partir de datos proporcionados
-
-
 def generar_qr(data, nombre_archivo):
     # Genera y guarda un código QR con los datos especificados
-
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -31,13 +28,11 @@ def generar_qr(data, nombre_archivo):
     return os.path.join('UACM_QR', nombre_archivo)
 
 # Vista para generar el código QR a través de la URL
-
-
 def generar_qr_view(request):
-    id_articulo = request.GET.get('id')
+    id_producto = request.GET.get('id')
     nombre = request.GET.get('nombre')
 
-    if not id_articulo or not nombre:
+    if not id_producto or not nombre:
         return HttpResponse('Faltan parámetros', status=400)
 
     qr = qrcode.QRCode(
@@ -46,7 +41,7 @@ def generar_qr_view(request):
         box_size=10,
         border=4,
     )
-    qr.add_data(f'{id_articulo} - {nombre}')
+    qr.add_data(f'{id_producto} - {nombre}')
     qr.make(fit=True)
     img = qr.make_image(fill='black', back_color='white')
 
@@ -55,31 +50,32 @@ def generar_qr_view(request):
     response['Cache-Control'] = 'public, max-age=3600'
     return response
 
-
 @login_required(login_url='')
 def gestiondeproductos(request):
     if request.method == 'POST':
-        id_articulo = request.POST.get('id_articulo')
-        nom_articulo = request.POST.get('nom_articulo')
-        desc_articulo = request.POST.get('descripcion_articulo')
-        cantidad_articulo = request.POST.get('cantidad_articulo')
+        id_producto = request.POST.get('id_producto')
+        nombre_producto = request.POST.get('nombre_producto')
+        descripcion_producto = request.POST.get('descripcion_producto')
+        cantidad_producto = request.POST.get('cantidad_producto')
         id_estatus = request.POST.get('id_estatus')
         action = request.POST.get('action')
 
         try:
-            cantidad = int(cantidad_articulo)
+            cantidad = int(cantidad_producto)
             if cantidad <= 0:
                 return JsonResponse({'status': 'error', 'message': "La cantidad debe ser mayor a cero."})
         except (ValueError, TypeError):
             return JsonResponse({'status': 'error', 'message': "Cantidad inválida."})
 
-        articulo = Articulo.objects.filter(id_articulo=id_articulo).first()
+        # Aquí cambiamos de Articulo a Producto
+        producto = Producto.objects.filter(id_producto=id_producto).first()
 
-        qr_path = articulo.qr_articulo if articulo and articulo.qr_articulo else generar_qr(
-            f'{id_articulo} - {nom_articulo}', f'{id_articulo}_{nom_articulo}.png')
+        # Si el producto existe, obtenemos el QR o lo generamos
+        qr_path = producto.imagen_producto if producto and producto.imagen_producto else generar_qr(
+            f'{id_producto} - {nombre_producto}', f'{id_producto}_{nombre_producto}.png')
 
         comando = ProductoCommand(
-            id_articulo, nom_articulo, desc_articulo, cantidad, id_estatus, qr_path)
+            id_producto, nombre_producto, descripcion_producto, cantidad, id_estatus, qr_path)
 
         try:
             mensaje_estado = comando.execute()
@@ -88,21 +84,20 @@ def gestiondeproductos(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
     elif request.method == 'GET':
-        id_articulo = request.GET.get('id_articulo')
-        if id_articulo:
-            articulo = Articulo.objects.filter(id_articulo=id_articulo).first()
-            if articulo:
+        id_producto = request.GET.get('id_producto')
+        if id_producto:
+            producto = Producto.objects.filter(id_producto=id_producto).first()
+            if producto:
                 return JsonResponse({
                     'status': 'success',
-                    'nombre_articulo': articulo.nom_articulo,
-                    'descripcion_articulo': articulo.desc_articulo,
-                    'cantidad_articulo': articulo.cantidad,
-                    'id_estatus': articulo.id_estatus.id_estatus,
-                    'qr_articulo': articulo.qr_articulo,
+                    'nombre_producto': producto.nombre_producto,
+                    'descripcion_producto': producto.descripcion_producto,
+                    'cantidad_producto': producto.cantidad,
+                    'id_estatus': producto.estatus.id_estatus,
+                    'imagen_producto': producto.imagen_producto,
                 })
-            return JsonResponse({'status': 'error', 'message': 'El artículo no existe.'})
+            return JsonResponse({'status': 'error', 'message': 'El producto no existe.'})
 
-        next_id = Articulo.objects.order_by(
-            '-id_articulo').first().id_articulo + 1 if Articulo.objects.exists() else 1
+        next_id = Producto.objects.order_by('-id_producto').first().id_producto + 1 if Producto.objects.exists() else 1
         estatus_list = Estatus.objects.all()
         return render(request, 'gestiondeproductos.html', {'estatus_list': estatus_list, 'next_id': next_id})

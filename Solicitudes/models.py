@@ -1,72 +1,59 @@
 from django.db import models
+from SistemaUACM.models import Almacen, Personal
+from GestiondeProductos.models import Producto
+from datetime import datetime
 
-# Modelo de Almacen
-
-
-class TipoAlmacen(models.Model):
-    tipo_almacen = models.CharField(max_length=50)
-
-    def __str__(self):
-        return self.tipo_almacen
-
-
-class Almacen(models.Model):
-    tipo_almacen = models.ForeignKey(TipoAlmacen, on_delete=models.CASCADE)
-    direccion = models.CharField(max_length=250)
-    correo = models.EmailField(max_length=250, null=True, blank=True)
-    telefono = models.CharField(max_length=10, null=True, blank=True)
-
-    def __str__(self):
-        return f'{self.direccion} ({self.tipo_almacen})'
-
-
-# Modelo de Personal
-class Rol(models.Model):
-    nombre_rol = models.CharField(max_length=25)
-
-    def __str__(self):
-        return self.nombre_rol
-
-
-class Personal(models.Model):
-    rol = models.ForeignKey(Rol, on_delete=models.CASCADE)
-    nombre_persona = models.CharField(max_length=50)
-    ap_pat = models.CharField(max_length=50)
-    ap_mat = models.CharField(max_length=50, null=True, blank=True)
-    telefono = models.CharField(max_length=10, null=True, blank=True)
-    correo = models.EmailField(max_length=250, null=True, blank=True)
-
-    def __str__(self):
-        return f'{self.nombre_persona} {self.ap_pat}'
-
-
-# Modelo de Estatus
-class Estatus(models.Model):
-    nomb_estatus = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.nomb_estatus
-
-
-# Modelo de Articulos
-class Articulo(models.Model):
-    estatus = models.ForeignKey(Estatus, on_delete=models.CASCADE)
-    nom_articulo = models.CharField(max_length=100)
-    desc_articulo = models.CharField(max_length=300)
-    cantidad = models.IntegerField()
-    qr_articulo = models.CharField(max_length=250, null=True, blank=True)
-
-    def __str__(self):
-        return self.nom_articulo
-
-
-# Modelo de Solicitudes
+# Modelo de Solicitud
 class Solicitud(models.Model):
-    almacen = models.ForeignKey(Almacen, on_delete=models.CASCADE)
-    personal = models.ForeignKey(Personal, on_delete=models.CASCADE)
-    articulo = models.ForeignKey(Articulo, on_delete=models.CASCADE)
-    cantidad = models.IntegerField()
-    fecha_sol = models.DateTimeField()
+    id_solicitud = models.AutoField(primary_key=True, db_column='id_solicitud')
+    id_almacen = models.ForeignKey(
+        Almacen,
+        on_delete=models.CASCADE,
+        db_column='id_almacen'
+    )
+    id_personal = models.ForeignKey(
+        Personal,
+        on_delete=models.CASCADE,
+        db_column='id_personal'
+    )
+    fecha_solicitud = models.DateTimeField(
+        db_column='fecha_solicitud',
+        default=models.functions.Now()  # Por defecto la fecha y hora actual
+    )
+    observaciones_solicitud = models.CharField(
+        max_length=300,
+        null=True,
+        blank=True,
+        db_column='observaciones_solicitud'
+    )
+
+    class Meta:
+        db_table = 'solicitud'  # Nombre de la tabla en la base de datos
+        verbose_name_plural = 'Solicitudes'  # Nombre plural para el modelo
 
     def __str__(self):
-        return f'Solicitud de {self.cantidad} de {self.articulo} por {self.personal}'
+        return f'Solicitud #{self.id_solicitud} de {self.id_personal} en {self.id_almacen}'
+
+# Modelo de Detalle de Solicitud (Productos solicitados)
+class DetalleSolicitud(models.Model):
+    id_solicitud = models.ForeignKey(
+        Solicitud,
+        on_delete=models.CASCADE,
+        db_column='id_solicitud'
+    )
+    id_producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        db_column='id_producto'
+    )
+    cantidad = models.IntegerField(
+        db_column='cantidad'
+    )
+
+    class Meta:
+        db_table = 'detalle_solicitud'  # Nombre de la tabla en la base de datos
+        unique_together = ('id_solicitud', 'id_producto')  # Asegura que un producto no se repita en una solicitud
+
+    def __str__(self):
+        return f'{self.id_producto.nombre_producto} ({self.cantidad})'
+

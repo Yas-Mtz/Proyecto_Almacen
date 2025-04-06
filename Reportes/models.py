@@ -1,58 +1,35 @@
-# Importamos el modelo Articulo de GestiondeProductos
-from GestiondeProductos.models import Articulo
 from django.db import models
-from django.core.exceptions import ValidationError
+from SistemaUACM.models import Almacen, Personal  # Importando Almacen y Personal desde SistemaUACM.models
+from GestiondeProductos.models import Producto
+from Solicitudes.models import Solicitud  # Cambiado a la app 'Solicitudes'
 
-# Modelo para la tabla tipo_almacen
+from datetime import datetime
 
+class ReporteSolicitud(models.Model):
+    # Campos relacionados con la solicitud
+    id_solicitud = models.ForeignKey(Solicitud, on_delete=models.DO_NOTHING, db_column='id_solicitud')
+    nombre_personal = models.CharField(max_length=100, db_column='nombre_personal')
+    nombre_almacen = models.CharField(max_length=250, db_column='nombre_almacen')
+    nombre_producto = models.CharField(max_length=100, db_column='nombre_producto')
+    cantidad_solicitada = models.IntegerField(db_column='cantidad_solicitada')
+    fecha_solicitud = models.DateTimeField(db_column='fecha_solicitud')
 
-class TipoAlmacen(models.Model):
-    tipo_almacen = models.CharField(max_length=50, unique=True)
+    # Método para obtener el reporte
+    @classmethod
+    def generar_reporte(cls, fecha_inicio=None, fecha_fin=None):
+        """Genera el reporte de solicitudes filtrado por fecha (si es necesario)"""
+        reportes = cls.objects.all()
 
-    def __str__(self):
-        return self.tipo_almacen
+        # Filtro por fecha si se pasa como parámetro
+        if fecha_inicio and fecha_fin:
+            reportes = reportes.filter(fecha_solicitud__range=[fecha_inicio, fecha_fin])
 
-    class Meta:
-        db_table = 'tipo_almacen'
-
-
-# Modelo para la tabla almacen
-class Almacen(models.Model):
-    tipo_almacen = models.ForeignKey(TipoAlmacen, on_delete=models.PROTECT)
-    direccion = models.CharField(max_length=250)
-    correo = models.EmailField(null=True, blank=True)
-    telefono = models.CharField(max_length=10, null=True, blank=True)
-
-    def __str__(self):
-        return f"Almacen {self.id} - {self.direccion}"
-
-    class Meta:
-        db_table = 'almacen'
-
-
-# Modelo para la tabla solicitudes en Reportes
-class Solicitudes(models.Model):
-    id_solicitud = models.AutoField(primary_key=True)
-    id_almacen = models.IntegerField()
-    id_personal = models.IntegerField()
-    id_articulo = models.IntegerField()
-    cantidad = models.IntegerField()
-    fecha_sol = models.DateTimeField()
-
-    def save(self, *args, **kwargs):
-        # Lógica para actualizar el inventario al hacer una solicitud
-        articulo = self.id_articulo
-        if articulo.cantidad >= self.cantidad:
-            articulo.cantidad -= self.cantidad
-            articulo.save()
-            super().save(*args, **kwargs)
-        else:
-            raise ValidationError(
-                "No hay suficiente cantidad en inventario para realizar la solicitud."
-            )
-
-    def __str__(self):
-        return f"Solicitud {self.id} - Artículo: {self.id_articulo.nom_articulo}"
+        return reportes
 
     class Meta:
-        db_table = 'solicitudes'
+        db_table = 'reporte_solicitud'  # Este es un modelo de reporte, no una tabla física
+        managed = False  # Evita que Django cree/modifique la tabla
+        verbose_name_plural = 'Reportes de Solicitudes'
+
+    def __str__(self):
+        return f"Reporte de solicitud #{self.id_solicitud} - {self.nombre_personal} ({self.nombre_almacen})"
