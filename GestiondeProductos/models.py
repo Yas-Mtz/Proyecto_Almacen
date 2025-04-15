@@ -17,13 +17,6 @@ class CategoriaProducto(models.Model):
     id_categoria = models.AutoField(primary_key=True, db_column='id_categoria')
     nombre_categoria = models.CharField(max_length=100, db_column='nombre_categoria')
     descripcion_categoria = models.CharField(max_length=300, db_column='descripcion_categoria')
-    estatus = models.ForeignKey(
-        Estatus,
-        on_delete=models.DO_NOTHING,
-        db_column='id_estatus',
-        null=True,
-        blank=True
-    )
     fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='fecha_creacion')
 
     class Meta:

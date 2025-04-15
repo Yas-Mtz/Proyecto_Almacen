@@ -1,197 +1,302 @@
 $(document).ready(function () {
+    // Constantes para los IDs de estatus
+    const ESTATUS_ACTIVO = 1;
+    const ESTATUS_INACTIVO = 2;
 
     /**
-     * Actualiza la imagen del código QR y la información relacionada con un producto.
+     * Actualiza la imagen del código QR temporal y la información relacionada con un producto.
      * @param {string} id - El identificador del producto.
      * @param {string} nombre - El nombre del producto.
      */
     function actualizarQR(id, nombre) {
         if (id && nombre) {
-            console.log('ID del artículo seleccionado:', id);
-            console.log('Nombre del artículo seleccionado:', nombre);
+            console.log('ID del producto:', id);
+            console.log('Nombre del producto:', nombre);
 
-            // Construcción de la URL para generar el QR
             const url = `/GestiondeProductos/generar_qr/?id=${id}&nombre=${encodeURIComponent(nombre)}`;
-            console.log('URL del QR:', url);
+            console.log('URL del QR temporal:', url);
 
-            // Hacer la solicitud para generar el código QR
-            fetch(url)
-                .then(response => response.blob()) // Obtener la respuesta como un blob (imagen)
-                .then(blob => {
-                    console.log('Imagen QR recibida');
-                    // Crear una URL para el archivo de imagen del código QR
-                    const qrImageUrl = URL.createObjectURL(blob);
-                    // Mostrar la imagen del QR
-                    $('#qr-image').attr('src', qrImageUrl).show();
+            $('#loader').show();
+            $('#qr-id').text(id);
+            $('#qr-nombre').text(nombre);
+            $('#qr-cantidad').text($('#cantidad').val() || '----');
+            
+            $('#qr-placeholder').hide();
+            $('#qr-image').attr('src', url).show();
+            $('#download-btn').prop('disabled', false);
 
-                    // Ocultar el loader después de un retraso
-                    setTimeout(function () {
-                        $('#loader').hide(); // Oculta el loader después de 2 segundos
-                    }, 2000);
+            $('#download-btn').off('click').on('click', function () {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `QR_${id}_${nombre.replace(/\s+/g, '_')}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
 
-                    // Configurar el botón de descarga del QR
-                    $('#download-btn').off('click').on('click', function () {
-                        const a = document.createElement('a');
-                        a.href = qrImageUrl;
-                        a.download = `QR_${id}.png`; // Nombre de archivo para la descarga
-                        document.body.appendChild(a);
-                        a.click(); // Simula el clic para descargar
-                        document.body.removeChild(a); // Elimina el elemento creado
-                    });
-                })
-                .catch(error => {
-                    console.error('Error al generar el QR:', error); // Manejo de errores
-                    $('#loader').hide(); // Ocultar el loader en caso de error
-                });
+            $('#qr-image').on('load', function () {
+                $('#loader').hide();
+            });
         }
     }
 
     /**
-     * Maneja el evento de clic en el botón 'edit-btn'. 
-     * Obtiene la información del producto y actualiza los campos del formulario y la imagen del QR.
+     * Valida todos los campos requeridos del formulario
+     * @returns {boolean} True si todos los campos son válidos, False si hay errores
      */
-    $('#edit-btn').on('click', function () {
-        var id_articulo = $('#buscar').val(); // Obtener el ID del artículo desde el input 'buscar'
-        console.log('ID del artículo seleccionado:', id_articulo);
+    function validarFormulario() {
+        let isValid = true;
+        $('.error').removeClass('error');
+        
+        // Campos requeridos
+        const requiredFields = [
+            '#id_producto', '#nombre_producto', '#descripcion_producto',
+            '#cantidad', '#stock_minimo', '#id_estatus',
+            '#id_categoria', '#id_marca', '#id_unidad'
+        ];
 
-        if (id_articulo) {
-            // Mostrar el loader mientras se realiza la solicitud
-            $('#loader').show(); // Muestra el loader
+        requiredFields.forEach(field => {
+            const $field = $(field);
+            if (!$field.val() || $field.val() === "") {
+                isValid = false;
+                $field.addClass('error');
+                console.error(`Campo requerido faltante: ${field}`);
+            }
+        });
 
-            // Realizar una solicitud AJAX para obtener los datos del producto
-            $.ajax({
-                url: '/GestiondeProductos/', // URL de la solicitud
-                method: 'GET',
-                data: { 'id_articulo': id_articulo }, // Datos a enviar en la solicitud
-                success: function (response) {
-                    console.log('Respuesta del servidor:', response);
+        // Validar valores numéricos
+        const cantidad = parseInt($('#cantidad').val());
+        const stockMinimo = parseInt($('#stock_minimo').val());
 
-                    if (response.status === 'success') {
-                        $('#id_articulo').val(id_articulo);
-                        $('#nom_articulo').val(response.nombre_articulo);
-                        $('#descripcion_articulo').val(response.descripcion_articulo);
-                        $('#estatus').val(response.id_estatus); // Esto debería funcionar correctamente
-                        $('#id_estatus').val(response.id_estatus);
-                        $('input[name="action"]').val('update');
-                        actualizarQR(id_articulo, response.nombre_articulo);
-                        alert(response.message); // Muestra el mensaje de éxito como alerta
-                    } else {
-                        $('#cantidad_articulo').prop('disabled', false);
-                        $('input[name="action"]').val('add');
-                        alert(response.message); // Muestra el mensaje de error como alerta
-                    }
-
-                    // Ocultar el loader después de la respuesta con retraso
-                    setTimeout(function () {
-                        $('#loader').hide(); // Oculta el loader después de 2 segundos
-                    }, 2000);
-                },
-                error: function () {
-                    console.log('Error al consultar el artículo.');
-                    alert('Error al consultar el artículo.');
-
-                    // Ocultar el loader en caso de error
-                    $('#loader').hide();
-                }
-            });
-        } else {
-            $('#nom_articulo, #descripcion_articulo, #cantidad_articulo, #id_estatus').val('');
-            $('#qr-image').attr('src', '').hide();
-            $('input[name="action"]').val('add');
+        if (isNaN(cantidad)) {
+            $('#cantidad').addClass('error');
+            isValid = false;
         }
-    });
+
+        if (isNaN(stockMinimo)) {
+            $('#stock_minimo').addClass('error');
+            isValid = false;
+        }
+
+        return isValid;
+    }
 
     /**
-     * Maneja el evento de clic en el botón 'btn-guardar' para guardar o actualizar un artículo.
+     * Maneja el evento de clic en el botón de búsqueda.
      */
-    $('#btn-guardar').on('click', function (event) {
-        event.preventDefault();
-        console.log("Valor de nom_articulo antes de enviar:", $('#nom_articulo').val());
+    $('#search-btn').on('click', function (e) {
+        e.preventDefault();
+        const id_producto = $('#buscar').val().trim();
 
-        // Obtener el valor de cantidad y convertirlo a entero
-        var cantidad = parseInt($('#cantidad_articulo').val(), 10);
-        
-        // Verificación de la cantidad para asegurarse de que sea un número entero válido y no negativo
-        if (isNaN(cantidad) || cantidad < 0) {
-            alert("La cantidad debe ser un número entero válido.");
+        if (!id_producto) {
+            alert('Por favor ingrese un ID de producto');
             return;
         }
 
-        var data = {
-            id_articulo: $('#id_articulo').val(),
-            nom_articulo: $('#nom_articulo').val(),
-            descripcion_articulo: $('#descripcion_articulo').val(),
-            id_estatus: $('#estatus').val(),
-            cantidad_articulo: cantidad, // Agregar la cantidad a los datos
-            csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val(),
-            action: $('input[name="action"]').val()
-        };
-
-        console.log('Datos a enviar:', data);
-
-        // Verificar que todos los campos estén completos
-        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.id_estatus || isNaN(data.cantidad_articulo)) {
-            alert("Por favor, complete todos los campos.");
-            return;
-        }
+        console.log('Buscando producto ID:', id_producto);
+        $('#loader').show();
 
         $.ajax({
             url: '/GestiondeProductos/',
-            method: 'POST',
-            data: data,
+            method: 'GET',
+            data: { 'buscar': id_producto },
             success: function (response) {
-                console.log('Respuesta del servidor al guardar:', response);
+                console.log('Respuesta del servidor:', response);
 
                 if (response.status === 'success') {
-                    alert(response.message); // Muestra el mensaje de éxito como alerta
-                    actualizarQR(data.id_articulo, data.nom_articulo);
-                    $('#nom_articulo, #descripcion_articulo, #cantidad_articulo').val(''); // Limpiar campos
-                    $('#qr-image').attr('src', '').hide(); // Limpiar la imagen QR
-                    $('input[name="action"]').val('add'); // Preparar para una nueva adición
-                    $('#estatus').val(''); // Limpiar el campo de estatus
+                    // Actualizar campos del formulario
+                    $('#id_producto').val(response.id_producto);
+                    $('#nombre_producto').val(response.nombre_producto);
+                    $('#descripcion_producto').val(response.descripcion_producto);
+                    $('#cantidad').val(response.cantidad);
+                    $('#stock_minimo').val(response.stock_minimo);
+                    $('#id_estatus').val(response.estatus);
+                    $('#id_categoria').val(response.categoria);
+                    $('#id_marca').val(response.marca);
+                    $('#id_unidad').val(response.unidad);
+                    $('#observaciones').val(response.observaciones);
+
+                    // Cambiar a modo actualización
+                    $('input[name="action"]').val('update');
+                    $('#btn-guardar').html('<i class="fas fa-save"></i> Actualizar Producto');
+                    $('#toggle-status-btn').show();
+
+                    // Configurar botón de estado
+                    const isActive = response.estatus == ESTATUS_ACTIVO;
+                    $('#toggle-status-btn')
+                        .toggleClass('btn-warning btn-success', !isActive)
+                        .html(`<i class="fas fa-power-off"></i> ${isActive ? 'Desactivar' : 'Activar'} Producto`);
+
+                    // Actualizar QR
+                    actualizarQR(response.id_producto, response.nombre_producto);
                 } else {
-                    alert(response.message); // Muestra el mensaje de error como alerta
+                    alert(response.message || 'Producto no encontrado');
                 }
             },
-            error: function () {
-                console.log('Error al registrar o actualizar el artículo.');
-                alert('Error al registrar o actualizar el artículo.');
+            error: function (xhr, status, error) {
+                console.error('Error al consultar el producto:', error);
+                alert('Error al consultar el producto');
+            },
+            complete: function() {
+                $('#loader').hide();
             }
         });
     });
 
     /**
-     * Maneja el evento de clic en el botón 'generate-qr-btn' para generar el QR.
+     * Maneja el evento de clic en el botón 'Guardar' para guardar o actualizar un producto.
      */
-    $('#generate-qr-btn').on('click', function () {
-        var data = {
-            id_articulo: $('#id_articulo').val(),
-            nom_articulo: $('#nom_articulo').val(),
-            descripcion_articulo: $('#descripcion_articulo').val(),
-            id_estatus: $('#estatus').val(), // Utiliza el campo correcto para obtener el valor de id_estatus
-        };
+    $('#btn-guardar').on('click', function (event) {
+        event.preventDefault();
+        
+        // Validación básica de campos requeridos
+        const requiredFields = [
+            '#id_producto', '#nombre_producto', '#descripcion_producto',
+            '#cantidad', '#stock_minimo', '#id_estatus',
+            '#id_categoria', '#id_marca', '#id_unidad'
+        ];
+        
+        let isValid = true;
+        requiredFields.forEach(field => {
+            if (!$(field).val()) {
+                isValid = false;
+                $(field).addClass('error');
+                console.error(`Campo requerido faltante: ${field}`);
+            } else {
+                $(field).removeClass('error');
+            }
+        });
+        
+        if (!isValid) {
+            alert('Por favor complete todos los campos requeridos');
+            return;
+        }
+    
+        // Preparar FormData con todos los campos necesarios
+        const formData = new FormData();
+        formData.append('id_producto', $('#id_producto').val());
+        formData.append('nombre_producto', $('#nombre_producto').val());
+        formData.append('descripcion_producto', $('#descripcion_producto').val());
+        formData.append('cantidad', $('#cantidad').val());
+        formData.append('stock_minimo', $('#stock_minimo').val());
+        formData.append('id_estatus', $('#id_estatus').val());
+        formData.append('id_categoria', $('#id_categoria').val());
+        formData.append('id_marca', $('#id_marca').val());
+        formData.append('id_unidad', $('#id_unidad').val());
+        formData.append('observaciones', $('#observaciones').val());
+        formData.append('action', $('input[name="action"]').val());
+        formData.append('csrfmiddlewaretoken', $('input[name="csrfmiddlewaretoken"]').val());
+    
+        // Manejar la imagen si fue subida
+        const imagenInput = $('#imagen_producto')[0];
+        if (imagenInput.files.length > 0) {
+            formData.append('imagen_producto', imagenInput.files[0]);
+        }
+    
+        console.log('Enviando datos:', Object.fromEntries(formData));
+        $('#loader').show();
+    
+        // Enviar datos al servidor
+        $.ajax({
+            url: '/GestiondeProductos/',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    alert(response.message);
+                    // Actualizar interfaz según sea necesario
+                } else {
+                    alert(response.message || 'Error al guardar el producto');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error:', error);
+                alert('Error al comunicarse con el servidor');
+            },
+            complete: function() {
+                $('#loader').hide();
+            }
+        });
+    });
 
-        console.log('Datos a enviar:', data);
+    /**
+     * Maneja el cambio de estado del producto (Activar/Desactivar)
+     */
+    $('#toggle-status-btn').on('click', function() {
+        const productId = $('#id_producto').val();
+        if (!productId) return;
 
-        // Validar que los campos no estén vacíos
-        if (!data.id_articulo || !data.nom_articulo || !data.descripcion_articulo || !data.id_estatus) {
-            alert("Por favor, ingresa los datos solicitados antes de generar el QR");
+        const currentStatus = parseInt($('#id_estatus').val());
+        const newStatus = currentStatus === ESTATUS_ACTIVO ? ESTATUS_INACTIVO : ESTATUS_ACTIVO;
+        
+        if (confirm(`¿Está seguro que desea ${newStatus === ESTATUS_ACTIVO ? 'activar' : 'desactivar'} este producto?`)) {
+            $('#loader').show();
+            
+            $.ajax({
+                url: '/GestiondeProductos/',
+                method: 'GET',
+                data: {
+                    'cambiar_estatus': 1,
+                    'producto_id': productId,
+                    'nuevo_estatus': newStatus
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $('#id_estatus').val(newStatus);
+                        $('#toggle-status-btn')
+                            .toggleClass('btn-warning btn-success')
+                            .html(`<i class="fas fa-power-off"></i> ${newStatus === ESTATUS_ACTIVO ? 'Desactivar' : 'Activar'} Producto`);
+                        alert(response.message);
+                    } else {
+                        alert(response.message || 'Error al cambiar el estado');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error al cambiar estado:', error);
+                    alert('Error al cambiar el estado del producto');
+                },
+                complete: function() {
+                    $('#loader').hide();
+                }
+            });
+        }
+    });
+
+    /**
+     * Maneja el evento de clic en el botón 'Generar QR'
+     */
+    $('#generate-qr-btn').on('click', function (e) {
+        e.preventDefault();
+        const id = $('#id_producto').val();
+        const nombre = $('#nombre_producto').val();
+
+        if (!id || !nombre) {
+            alert('Por favor ingrese al menos el ID y nombre del producto');
             return;
         }
 
-        // Mostrar el loader mientras se genera el QR
-        $('#loader').show(); // Muestra el loader
-
-        // Actualizar la descripción en la sección del QR
-        $('#qr-id').text(data.id_articulo); // Usa el valor correcto de 'data'
-        $('#qr-nombre').text(data.nom_articulo); // Usa el valor correcto de 'data'
-
-        // Llamar a la función para generar y mostrar el QR
-        actualizarQR(data.id_articulo, data.nom_articulo);
-
-        // Ocultar el loader después de un retraso
-        setTimeout(function () {
-            $('#loader').hide(); // Oculta el loader después de 2 segundos
-        }, 100);
+        actualizarQR(id, nombre);
     });
+
+    /**
+     * Maneja el cambio en la imagen para mostrar vista previa
+     */
+    $('#imagen_producto').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            $('#file-name').text(file.name);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#preview-image').attr('src', e.target.result);
+                $('#image-preview').show();
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Inicialización
+    $('#toggle-status-btn').hide();
 });

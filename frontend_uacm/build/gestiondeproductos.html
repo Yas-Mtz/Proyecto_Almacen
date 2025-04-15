@@ -6,121 +6,199 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Productos - UACM</title>
     <link rel="stylesheet" href="{% static 'css/gestiondeproductos.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{% static 'js/gestiondeproductos.js' %}"></script>
+    <script src="{% static 'js/gestiondeproductos.js' %}" defer></script>
 </head>
 <body>
     <header class="header">
         <div class="header-left">
             <div class="logo">
-                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM">
+                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" loading="lazy">
             </div>
-            <a href="{% url 'home' %}" class="home-button">
-                <img src="https://www.svgrepo.com/show/525383/home-1.svg" alt="Menú" class="home-icon">
+            <a href="{% url 'home' %}" class="home-button" aria-label="Inicio">
+                <i class="fas fa-home"></i>
             </a>
         </div>
         <h1>SISTEMA DE INVENTARIO</h1>
 
         <div class="user-profile" id="userProfile">
-            <span class="user-icon">👤</span>
+            <i class="fas fa-user-circle"></i>
             <span class="user-name">{{ user.username }}</span>
         </div>
     </header>
 
     <main class="main-content">
         <div class="form-container">
-            <h1>Gestión de Productos</h1>
+            <h1><i class="fas fa-boxes"></i> Gestión de Productos</h1>
+            
             <div class="search-container">
-                <input type="text" id="buscar" placeholder="Buscar artículo por ID">
-                <button id="edit-btn" class="edit-btn">
-                    <img src="https://static.vecteezy.com/system/resources/previews/010/146/332/non_2x/search-icon-sign-symbol-design-free-png.png" alt="edit">
+                <input type="text" id="buscar" placeholder="Buscar artículo por ID" aria-label="Buscar producto">
+                <button id="search-btn" class="search-btn" aria-label="Buscar">
+                    <i class="fas fa-search"></i>
                 </button>
             </div>
                   
-            <form method="POST" action="{% url 'gestiondeproductos' %}">
+            <form id="product-form" method="POST" action="/GestiondeProductos/" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add">
+                <input type="hidden" id="current_product_id" value="">
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="id_articulo">ID</label>
-                        <input type="text" id="id_articulo" name="id_articulo" required value="{{ next_id }}">
+                        <label for="id_producto"><i class="fas fa-barcode"></i> ID</label>
+                        <input type="text" id="id_producto" name="id_producto" required value="{{ next_id }}" readonly>
                     </div>
                     <div class="form-group">
-                        <label for="nom_articulo">Nombre</label>
-                        <input type="text" id="nom_articulo" name="nom_articulo" required>
+                        <label for="nombre_producto"><i class="fas fa-tag"></i> Nombre</label>
+                        <input type="text" id="nombre_producto" name="nombre_producto" required maxlength="100">
                     </div>
                     <div class="form-group">
-                        <label for="cantidad_articulo">Cantidad</label>
-                        <input type="number" id="cantidad_articulo" name="cantidad_articulo" required>
+                        <label for="cantidad"><i class="fas fa-boxes"></i> Cantidad</label>
+                        <input type="number" id="cantidad" name="cantidad" required min="0" step="1">
                     </div>
                     <div class="form-group">
-                        <label for="estatus">Estatus</label>
-                        <select type="text" id="estatus" name="id_estatus" required>
+                        <label for="stock_minimo"><i class="fas fa-exclamation-triangle"></i> Stock Mínimo</label>
+                        <input type="number" id="stock_minimo" name="stock_minimo" required min="0" step="1">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <!-- CAMBIOS PRINCIPALES AQUÍ: Se agregó id_ a los nombres de los campos -->
+                    <div class="form-group">
+                        <label for="id_estatus"><i class="fas fa-toggle-on"></i> Estatus</label>
+                        <select id="id_estatus" name="id_estatus" required>
                             <option value="" disabled selected>Selecciona un estatus</option>
                             {% for est in estatus_list %}
-                                <option value="{{ est.id_estatus }}">{{ est.nomb_estatus }}</option>
+                                <option value="{{ est.id_estatus }}" {% if est.id_estatus == ESTATUS_ACTIVO %}selected{% endif %}>{{ est.nombre_estatus }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_categoria"><i class="fas fa-list"></i> Categoría</label>
+                        <select id="id_categoria" name="id_categoria" required>
+                            <option value="" disabled selected>Selecciona una categoría</option>
+                            {% for cat in categorias_list %}
+                                <option value="{{ cat.id_categoria }}">{{ cat.nombre_categoria }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_marca"><i class="fas fa-copyright"></i> Marca</label>
+                        <select id="id_marca" name="id_marca" required>
+                            <option value="" disabled selected>Selecciona una marca</option>
+                            {% for marca in marcas_list %}
+                                <option value="{{ marca.id_marca }}">{{ marca.nombre_marca }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_unidad"><i class="fas fa-ruler-combined"></i> Unidad de Medida</label>
+                        <select id="id_unidad" name="id_unidad" required>
+                            <option value="" disabled selected>Selecciona una unidad</option>
+                            {% for unidad in unidades_list %}
+                                <option value="{{ unidad.id_unidad }}">{{ unidad.nombre_unidad }} ({{ unidad.abreviatura }})</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="descripcion_articulo">Descripción</label>
-                    <textarea id="descripcion_articulo" name="descripcion_articulo" rows="4" required></textarea>
+                    <label for="descripcion_producto"><i class="fas fa-align-left"></i> Descripción</label>
+                    <textarea id="descripcion_producto" name="descripcion_producto" rows="3" required maxlength="300"></textarea>
+                    <div class="char-counter"><span id="desc-counter">0</span>/300</div>
                 </div>
 
-                <!-- Agrega un div para el loader (el spinner) -->
-                <div id="loader" style="display: none;">
-                    <div class="spinner"></div> <!-- El spinner se mostrará mientras se carga el QR -->
+                <div class="form-group">
+                    <label for="observaciones"><i class="fas fa-sticky-note"></i> Observaciones</label>
+                    <textarea id="observaciones" name="observaciones" rows="2" maxlength="300"></textarea>
+                    <div class="char-counter"><span id="obs-counter">0</span>/300</div>
                 </div>
 
-
-                <div id="button">
-                    <button type="submit" id="btn-guardar" class="submit-btn">Guardar</button>
-
-                    <button type="button" id="generate-qr-btn" class="submit-btn">Generar QR</button>
+                <div class="form-group">
+                    <label for="imagen_producto"><i class="fas fa-image"></i> Imagen del Producto</label>
+                    <div class="file-upload">
+                        <input type="file" id="imagen_producto" name="imagen_producto" accept="image/*">
+                        <label for="imagen_producto" class="file-upload-label">
+                            <i class="fas fa-upload"></i> Seleccionar imagen
+                        </label>
+                        <span id="file-name">Ningún archivo seleccionado</span>
+                    </div>
+                    <div class="image-preview" id="image-preview" style="display: none;">
+                        <img id="preview-image" src="#" alt="Vista previa de la imagen">
+                    </div>
                 </div>
-                
+
+                <div id="loader" class="loader-container" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Procesando...</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="btn-guardar" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Producto
+                    </button>
+                    <button type="button" id="btn-cancelar" class="btn btn-secondary" style="display: none;">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" id="generate-qr-btn" class="btn btn-tertiary">
+                        <i class="fas fa-qrcode"></i> Generar QR
+                    </button>
+                    <button type="button" id="toggle-status-btn" class="btn btn-warning" style="display: none;">
+                        <i class="fas fa-power-off"></i> Desactivar Producto
+                    </button>
+                </div>
             </form>
         </div>
 
         <div class="qr-container">
-            <h2>QR Producto</h2>
+            <h2><i class="fas fa-qrcode"></i> Código QR del Producto</h2>
             <div class="qr-content">
                 <div class="qr-info">
-                    <p><strong>Descripción</strong></p>
-                    <p>ID: <span id="qr-id">----</span></p>
-                    <p>Nombre: <span id="qr-nombre">----</span></p>
+                    <p><strong>Información del Producto</strong></p>
+                    <p><i class="fas fa-barcode"></i> ID: <span id="qr-id">----</span></p>
+                    <p><i class="fas fa-tag"></i> Nombre: <span id="qr-nombre">----</span></p>
+                    <p><i class="fas fa-boxes"></i> Cantidad: <span id="qr-cantidad">----</span></p>
                 </div>
                 <div class="qr-code">
-                    <img id="qr-image" src="" alt="QR" style="display:none;" />
-                    <button id="download-btn" class="download-btn">
-                        <img src="https://www.svgrepo.com/show/425975/download.svg" alt="Descargar">
+                    <div id="qr-placeholder" class="qr-placeholder">
+                        <i class="fas fa-qrcode"></i>
+                        <p>Genera un código QR</p>
+                    </div>
+                    <img id="qr-image" src="" alt="Código QR del producto" style="display:none;">
+                    <button id="download-btn" class="btn btn-download" disabled>
+                        <i class="fas fa-download"></i> Descargar QR
                     </button>
                 </div>
             </div>
         </div>
-        
     </main>
 
     <footer class="footer">
         <p>"NADA HUMANO ME ES AJENO"</p>
     </footer>
 
-    <!-- Bloque para mostrar mensajes de Django -->
     {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-                <script type="text/javascript">
-                    // Mostrar el mensaje en una ventana emergente (alert)
-                    alert("{{ message }}");
-
-                    // También podrías usar console.log si deseas ver el mensaje en la consola
-                    console.log("Mensaje desde Django: {{ message }}");
-                </script>
-            {% endfor %}
+    <div class="notification-container">
+        {% for message in messages %}
+        <div class="notification {% if message.tags %}{{ message.tags }}{% endif %}">
+            <button class="close-btn">&times;</button>
+            <div class="notification-content">
+                {% if 'success' in message.tags %}
+                <i class="fas fa-check-circle"></i>
+                {% elif 'error' in message.tags %}
+                <i class="fas fa-exclamation-circle"></i>
+                {% else %}
+                <i class="fas fa-info-circle"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
+
+    
+    </div>
 </body>
 </html>

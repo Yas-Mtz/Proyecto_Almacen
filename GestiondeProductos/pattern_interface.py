@@ -1,27 +1,19 @@
-# interfaces.py
-
 from abc import ABC, abstractmethod
-
+from typing import Any, Dict
 
 class Command(ABC):
-    """
-    Interfaz base para los comandos, define el método `execute`.
-    """
     @abstractmethod
-    def execute(self):
-        """
-        Ejecuta el comando, este método debe ser implementado por las clases concretas.
-        """
+    def execute(self) -> Any:
+        pass
+    
+    @abstractmethod
+    def undo(self) -> bool:
         pass
 
-
-class EstadoProducto(ABC):
+class ProductCommand(Command):
     """
-    Interfaz para los estados de un producto.
+    Interfaz especializada para comandos de producto
     """
     @abstractmethod
-    def manejar_estado(self, producto):
-        """
-        Devuelve una cadena de texto que describe el estado de un producto.
-        """
+    def validate(self) -> bool:
         pass
