@@ -14,7 +14,7 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">
-                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" loading="lazy">
+                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" loading="lazy" width="80" height="80">
             </div>
             <a href="{% url 'home' %}" class="home-button" aria-label="Inicio">
                 <i class="fas fa-home"></i>
@@ -33,7 +33,10 @@
             <h1><i class="fas fa-boxes"></i> Gestión de Productos</h1>
             
             <div class="search-container">
-                <input type="text" id="buscar" placeholder="Buscar artículo por ID" aria-label="Buscar producto">
+                <input type="text" id="buscar" list="sugerencias-productos" placeholder="Buscar por ID o nombre">
+                <datalist id="sugerencias-productos">
+                    <!-- Las opciones se pueden cargar via AJAX -->
+                </datalist>
                 <button id="search-btn" class="search-btn" aria-label="Buscar">
                     <i class="fas fa-search"></i>
                 </button>
@@ -42,7 +45,7 @@
             <form id="product-form" method="POST" action="/GestiondeProductos/" enctype="multipart/form-data" novalidate>
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add">
-                <input type="hidden" id="current_product_id" value="">
+                <input type="hidden" id="current_product_id">
 
                 <div class="form-row">
                     <div class="form-group">
@@ -60,11 +63,11 @@
                     <div class="form-group">
                         <label for="stock_minimo"><i class="fas fa-exclamation-triangle"></i> Stock Mínimo</label>
                         <input type="number" id="stock_minimo" name="stock_minimo" required min="0" step="1">
+                        <div class="input-feedback" id="stock-warning"></div>
                     </div>
                 </div>
 
                 <div class="form-row">
-                    <!-- CAMBIOS PRINCIPALES AQUÍ: Se agregó id_ a los nombres de los campos -->
                     <div class="form-group">
                         <label for="id_estatus"><i class="fas fa-toggle-on"></i> Estatus</label>
                         <select id="id_estatus" name="id_estatus" required>
@@ -116,36 +119,23 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="imagen_producto"><i class="fas fa-image"></i> Imagen del Producto</label>
+                    <label for="imagen_producto"><i class="fas fa-image" required></i> Imagen del Producto</label>
                     <div class="file-upload">
-                        <input type="file" id="imagen_producto" name="imagen_producto" accept="image/*">
+                        <input type="file" id="imagen_producto" name="imagen_producto" accept="image/*" >
                         <label for="imagen_producto" class="file-upload-label">
-                            <i class="fas fa-upload"></i> Seleccionar imagen
+                            <i class="fas fa-upload"></i> <span>Seleccionar imagen</span>
                         </label>
-                        <span id="file-name">Ningún archivo seleccionado</span>
                     </div>
-                    <div class="image-preview" id="image-preview" style="display: none;">
-                        <img id="preview-image" src="#" alt="Vista previa de la imagen">
-                    </div>
+                   
                 </div>
 
-                <div id="loader" class="loader-container" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Procesando...</p>
-                </div>
 
                 <div class="form-actions">
                     <button type="submit" id="btn-guardar" class="btn btn-primary">
                         <i class="fas fa-save"></i> Guardar Producto
                     </button>
-                    <button type="button" id="btn-cancelar" class="btn btn-secondary" style="display: none;">
-                        <i class="fas fa-times"></i> Cancelar
-                    </button>
                     <button type="button" id="generate-qr-btn" class="btn btn-tertiary">
                         <i class="fas fa-qrcode"></i> Generar QR
-                    </button>
-                    <button type="button" id="toggle-status-btn" class="btn btn-warning" style="display: none;">
-                        <i class="fas fa-power-off"></i> Desactivar Producto
                     </button>
                 </div>
             </form>
@@ -155,17 +145,20 @@
             <h2><i class="fas fa-qrcode"></i> Código QR del Producto</h2>
             <div class="qr-content">
                 <div class="qr-info">
-                    <p><strong>Información del Producto</strong></p>
-                    <p><i class="fas fa-barcode"></i> ID: <span id="qr-id">----</span></p>
-                    <p><i class="fas fa-tag"></i> Nombre: <span id="qr-nombre">----</span></p>
-                    <p><i class="fas fa-boxes"></i> Cantidad: <span id="qr-cantidad">----</span></p>
+                    <h3><i class="fas fa-info-circle"></i> Información del Producto</h3>
+                    <div class="qr-info-item">
+                        <i class="fas fa-barcode"></i> <span>ID:</span> <span id="qr-id">----</span>
+                    </div>
+                    <div class="qr-info-item">
+                        <i class="fas fa-tag"></i> <span>Nombre:</span> <span id="qr-nombre">----</span>
+                    </div>
                 </div>
                 <div class="qr-code">
                     <div id="qr-placeholder" class="qr-placeholder">
                         <i class="fas fa-qrcode"></i>
                         <p>Genera un código QR</p>
                     </div>
-                    <img id="qr-image" src="" alt="Código QR del producto" style="display:none;">
+                    <img id="qr-image" src="" alt="Código QR del producto" loading="lazy">
                     <button id="download-btn" class="btn btn-download" disabled>
                         <i class="fas fa-download"></i> Descargar QR
                     </button>
@@ -182,14 +175,14 @@
     <div class="notification-container">
         {% for message in messages %}
         <div class="notification {% if message.tags %}{{ message.tags }}{% endif %}">
-            <button class="close-btn">&times;</button>
+            <button class="close-btn" aria-label="Cerrar notificación">&times;</button>
             <div class="notification-content">
                 {% if 'success' in message.tags %}
-                <i class="fas fa-check-circle"></i>
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
                 {% elif 'error' in message.tags %}
-                <i class="fas fa-exclamation-circle"></i>
+                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
                 {% else %}
-                <i class="fas fa-info-circle"></i>
+                <i class="fas fa-info-circle" aria-hidden="true"></i>
                 {% endif %}
                 <span>{{ message }}</span>
             </div>
@@ -197,8 +190,5 @@
         {% endfor %}
     </div>
     {% endif %}
-
-    
-    </div>
 </body>
 </html>

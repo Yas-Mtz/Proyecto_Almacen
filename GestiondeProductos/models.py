@@ -65,7 +65,8 @@ class Producto(models.Model):
         on_delete=models.DO_NOTHING,
         db_column='id_estatus',
         null=True,
-        blank=True
+        blank=True,
+        verbose_name='Imagen del Producto'
     )
     categoria = models.ForeignKey(
         CategoriaProducto,
