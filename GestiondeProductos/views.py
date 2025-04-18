@@ -1,7 +1,7 @@
 import os
 import qrcode
 import logging
-
+import glob
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
@@ -28,22 +28,34 @@ def generar_qr_temp(data):
     img = qr.make_image(fill='black', back_color='white')
     return img
 
-def guardar_imagen_categoria(imagen_file, id_producto, categoria_nombre):
-    """Guarda la imagen en una carpeta según la categoría"""
+
+
+def guardar_imagen_categoria(imagen_file, id_producto, categoria_nombre, producto_existente=None):
+    """Guarda o actualiza la imagen en la carpeta según la categoría, eliminando cualquier imagen anterior del producto."""
     safe_categoria = ''.join(c for c in categoria_nombre if c.isalnum() or c in (' ', '_')).rstrip()
     safe_categoria = safe_categoria.replace(' ', '_').lower()
     categoria_dir = os.path.join(settings.MEDIA_ROOT, 'productos', safe_categoria)
     os.makedirs(categoria_dir, exist_ok=True)
 
-    file_ext = os.path.splitext(imagen_file.name)[1]
-    safe_filename = f'prod_{id_producto}{file_ext}'
-    file_path = os.path.join(categoria_dir, safe_filename)
+    nueva_ext = os.path.splitext(imagen_file.name)[1].lower()
+    safe_filename = f'prod_{id_producto}{nueva_ext}'
+    imagen_path = os.path.join(categoria_dir, safe_filename)
 
-    with default_storage.open(file_path, 'wb+') as destination:
+    # Eliminar cualquier archivo anterior con el mismo id, sin importar la extensión
+    patrones = glob.glob(os.path.join(categoria_dir, f'prod_{id_producto}.*'))
+    for archivo in patrones:
+        try:
+            os.remove(archivo)
+        except Exception as e:
+            logger.warning(f"No se pudo eliminar la imagen anterior {archivo}: {str(e)}")
+
+    # Guardar la nueva imagen
+    with default_storage.open(imagen_path, 'wb+') as destination:
         for chunk in imagen_file.chunks():
             destination.write(chunk)
 
     return os.path.join('productos', safe_categoria, safe_filename)
+
 
 def generar_qr_view(request):
     """Vista para generar QR temporal"""
