@@ -1,21 +1,11 @@
 $(document).ready(function () {
-    // Constantes para los IDs de estatus
-    const ESTATUS_ACTIVO = 1;
-    const ESTATUS_INACTIVO = 2;
+    let searchTimeout = null;
+    let nuevaImagenSeleccionada = false; // ← Bandera para verificar si hay nueva imagen
 
-    /**
-     * Actualiza la imagen del código QR temporal y la información relacionada con un producto.
-     * @param {string} id - El identificador del producto.
-     * @param {string} nombre - El nombre del producto.
-     */
     function actualizarQR(id, nombre) {
         if (id && nombre) {
-            console.log('ID del producto:', id);
-            console.log('Nombre del producto:', nombre);
-
             const url = `/GestiondeProductos/generar_qr/?id=${id}&nombre=${encodeURIComponent(nombre)}`;
-            console.log('URL del QR temporal:', url);
-
+            
             $('#loader').show();
             $('#qr-id').text(id);
             $('#qr-nombre').text(nombre);
@@ -25,7 +15,7 @@ $(document).ready(function () {
             $('#qr-image').attr('src', url).show();
             $('#download-btn').prop('disabled', false);
 
-            $('#download-btn').off('click').on('click', function () {
+            $('#download-btn').off('click').on('click', function() {
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `QR_${id}_${nombre.replace(/\s+/g, '_')}.png`;
@@ -34,106 +24,117 @@ $(document).ready(function () {
                 document.body.removeChild(a);
             });
 
-            $('#qr-image').on('load', function () {
+            $('#qr-image').on('load', function() {
                 $('#loader').hide();
             });
         }
     }
 
-    /**
-     * Valida todos los campos requeridos del formulario
-     * @returns {boolean} True si todos los campos son válidos, False si hay errores
-     */
+    function limpiarQRInfo() {
+        $('#qr-id').text('----');
+        $('#qr-nombre').text('----');
+        $('#qr-cantidad').text('----');
+        $('#qr-image').hide();
+        $('#qr-placeholder').show();
+        $('#download-btn').prop('disabled', true);
+    }
+
     function validarFormulario() {
         let isValid = true;
         $('.error').removeClass('error');
         
-        // Campos requeridos
         const requiredFields = [
-            '#id_producto', '#nombre_producto', '#descripcion_producto',
+            '#id_producto', '#nombre_producto', 
             '#cantidad', '#stock_minimo', '#id_estatus',
             '#id_categoria', '#id_marca', '#id_unidad'
         ];
 
         requiredFields.forEach(field => {
             const $field = $(field);
-            if (!$field.val() || $field.val() === "") {
+            if (!$field.val()) {
                 isValid = false;
                 $field.addClass('error');
-                console.error(`Campo requerido faltante: ${field}`);
+                $field.closest('.form-group').find('.help-block').remove();
+                $field.after('<span class="help-block text-danger">Este campo es requerido</span>');
             }
         });
 
-        // Validar valores numéricos
         const cantidad = parseInt($('#cantidad').val());
         const stockMinimo = parseInt($('#stock_minimo').val());
 
         if (isNaN(cantidad)) {
             $('#cantidad').addClass('error');
+            $('#cantidad').after('<span class="help-block text-danger">Debe ser un número válido</span>');
             isValid = false;
         }
 
         if (isNaN(stockMinimo)) {
             $('#stock_minimo').addClass('error');
+            $('#stock_minimo').after('<span class="help-block text-danger">Debe ser un número válido</span>');
             isValid = false;
         }
 
         return isValid;
     }
 
-    /**
-     * Maneja el evento de clic en el botón de búsqueda.
-     */
-    $('#search-btn').on('click', function (e) {
+    function cargarDatosProducto(producto) {
+        $('#id_producto').val(producto.id_producto).prop('readonly', true);
+        $('#nombre_producto').val(producto.nombre_producto);
+        $('#descripcion_producto').val(producto.descripcion_producto);
+        $('#cantidad').val(producto.cantidad);
+        $('#stock_minimo').val(producto.stock_minimo);
+        $('#observaciones').val(producto.observaciones);
+        
+        $('#id_estatus').val(producto.id_estatus);
+        $('#id_categoria').val(producto.id_categoria);
+        $('#id_marca').val(producto.id_marca);
+        $('#id_unidad').val(producto.id_unidad);
+        
+        if (producto.imagen_url) {
+            $('#preview-image').attr('src', producto.imagen_url).show();
+            $('#image-preview').show();
+            $('#file-name').text(producto.imagen_nombre || 'Imagen del producto');
+        } else {
+            $('#preview-image').attr('src', '').hide();
+            $('#image-preview').hide();
+            $('#file-name').text('No hay imagen');
+        }
+
+        $('input[name="action"]').val('update');
+        $('#btn-guardar').html('<i class="fas fa-save"></i> Actualizar Producto');
+
+        actualizarQR(producto.id_producto, producto.nombre_producto);
+        nuevaImagenSeleccionada = false; // ← Al cargar, no hay nueva imagen
+    }
+
+    $('#search-btn').on('click', function(e) {
         e.preventDefault();
         const id_producto = $('#buscar').val().trim();
-
+        
         if (!id_producto) {
             alert('Por favor ingrese un ID de producto');
             return;
         }
 
-        console.log('Buscando producto ID:', id_producto);
+        if (!/^\d+$/.test(id_producto)) {
+            alert('El ID de producto debe ser un número');
+            return;
+        }
+
         $('#loader').show();
 
         $.ajax({
             url: '/GestiondeProductos/',
             method: 'GET',
             data: { 'buscar': id_producto },
-            success: function (response) {
-                console.log('Respuesta del servidor:', response);
-
+            success: function(response) {
                 if (response.status === 'success') {
-                    // Actualizar campos del formulario
-                    $('#id_producto').val(response.id_producto);
-                    $('#nombre_producto').val(response.nombre_producto);
-                    $('#descripcion_producto').val(response.descripcion_producto);
-                    $('#cantidad').val(response.cantidad);
-                    $('#stock_minimo').val(response.stock_minimo);
-                    $('#id_estatus').val(response.estatus);
-                    $('#id_categoria').val(response.categoria);
-                    $('#id_marca').val(response.marca);
-                    $('#id_unidad').val(response.unidad);
-                    $('#observaciones').val(response.observaciones);
-
-                    // Cambiar a modo actualización
-                    $('input[name="action"]').val('update');
-                    $('#btn-guardar').html('<i class="fas fa-save"></i> Actualizar Producto');
-                    $('#toggle-status-btn').show();
-
-                    // Configurar botón de estado
-                    const isActive = response.estatus == ESTATUS_ACTIVO;
-                    $('#toggle-status-btn')
-                        .toggleClass('btn-warning btn-success', !isActive)
-                        .html(`<i class="fas fa-power-off"></i> ${isActive ? 'Desactivar' : 'Activar'} Producto`);
-
-                    // Actualizar QR
-                    actualizarQR(response.id_producto, response.nombre_producto);
+                    cargarDatosProducto(response);
                 } else {
                     alert(response.message || 'Producto no encontrado');
                 }
             },
-            error: function (xhr, status, error) {
+            error: function(xhr, status, error) {
                 console.error('Error al consultar el producto:', error);
                 alert('Error al consultar el producto');
             },
@@ -143,36 +144,13 @@ $(document).ready(function () {
         });
     });
 
-    /**
-     * Maneja el evento de clic en el botón 'Guardar' para guardar o actualizar un producto.
-     */
-    $('#btn-guardar').on('click', function (event) {
+    $('#btn-guardar').on('click', function(event) {
         event.preventDefault();
         
-        // Validación básica de campos requeridos
-        const requiredFields = [
-            '#id_producto', '#nombre_producto', '#descripcion_producto',
-            '#cantidad', '#stock_minimo', '#id_estatus',
-            '#id_categoria', '#id_marca', '#id_unidad'
-        ];
-        
-        let isValid = true;
-        requiredFields.forEach(field => {
-            if (!$(field).val()) {
-                isValid = false;
-                $(field).addClass('error');
-                console.error(`Campo requerido faltante: ${field}`);
-            } else {
-                $(field).removeClass('error');
-            }
-        });
-        
-        if (!isValid) {
-            alert('Por favor complete todos los campos requeridos');
+        if (!validarFormulario()) {
             return;
         }
     
-        // Preparar FormData con todos los campos necesarios
         const formData = new FormData();
         formData.append('id_producto', $('#id_producto').val());
         formData.append('nombre_producto', $('#nombre_producto').val());
@@ -187,16 +165,15 @@ $(document).ready(function () {
         formData.append('action', $('input[name="action"]').val());
         formData.append('csrfmiddlewaretoken', $('input[name="csrfmiddlewaretoken"]').val());
     
-        // Manejar la imagen si fue subida
-        const imagenInput = $('#imagen_producto')[0];
-        if (imagenInput.files.length > 0) {
-            formData.append('imagen_producto', imagenInput.files[0]);
+        if (nuevaImagenSeleccionada) {
+            const imagenInput = $('#imagen_producto')[0];
+            if (imagenInput.files.length > 0) {
+                formData.append('imagen_producto', imagenInput.files[0]);
+            }
         }
     
-        console.log('Enviando datos:', Object.fromEntries(formData));
         $('#loader').show();
     
-        // Enviar datos al servidor
         $.ajax({
             url: '/GestiondeProductos/',
             method: 'POST',
@@ -205,8 +182,16 @@ $(document).ready(function () {
             contentType: false,
             success: function(response) {
                 if (response.success) {
-                    alert(response.message);
-                    // Actualizar interfaz según sea necesario
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            location.reload();
+                        }
+                    });
                 } else {
                     alert(response.message || 'Error al guardar el producto');
                 }
@@ -221,53 +206,7 @@ $(document).ready(function () {
         });
     });
 
-    /**
-     * Maneja el cambio de estado del producto (Activar/Desactivar)
-     */
-    $('#toggle-status-btn').on('click', function() {
-        const productId = $('#id_producto').val();
-        if (!productId) return;
-
-        const currentStatus = parseInt($('#id_estatus').val());
-        const newStatus = currentStatus === ESTATUS_ACTIVO ? ESTATUS_INACTIVO : ESTATUS_ACTIVO;
-        
-        if (confirm(`¿Está seguro que desea ${newStatus === ESTATUS_ACTIVO ? 'activar' : 'desactivar'} este producto?`)) {
-            $('#loader').show();
-            
-            $.ajax({
-                url: '/GestiondeProductos/',
-                method: 'GET',
-                data: {
-                    'cambiar_estatus': 1,
-                    'producto_id': productId,
-                    'nuevo_estatus': newStatus
-                },
-                success: function(response) {
-                    if (response.status === 'success') {
-                        $('#id_estatus').val(newStatus);
-                        $('#toggle-status-btn')
-                            .toggleClass('btn-warning btn-success')
-                            .html(`<i class="fas fa-power-off"></i> ${newStatus === ESTATUS_ACTIVO ? 'Desactivar' : 'Activar'} Producto`);
-                        alert(response.message);
-                    } else {
-                        alert(response.message || 'Error al cambiar el estado');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error al cambiar estado:', error);
-                    alert('Error al cambiar el estado del producto');
-                },
-                complete: function() {
-                    $('#loader').hide();
-                }
-            });
-        }
-    });
-
-    /**
-     * Maneja el evento de clic en el botón 'Generar QR'
-     */
-    $('#generate-qr-btn').on('click', function (e) {
+    $('#generate-qr-btn').on('click', function(e) {
         e.preventDefault();
         const id = $('#id_producto').val();
         const nombre = $('#nombre_producto').val();
@@ -280,23 +219,44 @@ $(document).ready(function () {
         actualizarQR(id, nombre);
     });
 
-    /**
-     * Maneja el cambio en la imagen para mostrar vista previa
-     */
     $('#imagen_producto').on('change', function() {
         const file = this.files[0];
         if (file) {
+            nuevaImagenSeleccionada = true;
             $('#file-name').text(file.name);
             
             const reader = new FileReader();
             reader.onload = function(e) {
-                $('#preview-image').attr('src', e.target.result);
+                $('#preview-image').attr('src', e.target.result).show();
                 $('#image-preview').show();
             }
             reader.readAsDataURL(file);
+        } else {
+            nuevaImagenSeleccionada = false;
+            $('#preview-image').attr('src', '').hide();
+            $('#image-preview').hide();
+            $('#file-name').text('No se seleccionó archivo');
         }
     });
 
+    $('#btn-nuevo').on('click', function() {
+        $('form')[0].reset();
+        $('#id_producto').val('').prop('readonly', false);
+        $('#descripcion_producto').val('');
+        $('input[name="action"]').val('add');
+        $('#btn-guardar').html('<i class="fas fa-save"></i> Guardar Producto');
+        $('#preview-image').attr('src', '').hide();
+        $('#image-preview').hide();
+        $('#file-name').text('No se seleccionó archivo');
+        $('.error').removeClass('error');
+        $('.help-block').remove();
+        limpiarQRInfo();
+        nuevaImagenSeleccionada = false;
+    });
+
     // Inicialización
-    $('#toggle-status-btn').hide();
+    $('#id_producto').prop('readonly', true);
+    $('#qr-image').hide();
+    $('#image-preview').hide();
+    limpiarQRInfo();
 });

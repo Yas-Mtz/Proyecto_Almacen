@@ -7,6 +7,9 @@
     <title>Gestión de Productos - UACM</title>
     <link rel="stylesheet" href="{% static 'css/gestiondeproductos.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Incluye SweetAlert2 desde CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{% static 'js/gestiondeproductos.js' %}" defer></script>
 </head>
@@ -126,7 +129,11 @@
                             <i class="fas fa-upload"></i> <span>Seleccionar imagen</span>
                         </label>
                     </div>
-                   
+                   <!--0Previsualización imagen-->
+                    <div class="imagen-previa" style="margin-top: 10px;">
+                        <img id="vista-previa" src="" alt="Vista previa de la imagen" style="max-width: 200px; display: none; border: 1px solid #ccc; padding: 4px;">
+                    </div>
+                
                 </div>
 
 
