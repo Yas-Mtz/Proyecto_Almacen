@@ -3,9 +3,18 @@ from SistemaUACM.models import Almacen, Personal
 from GestiondeProductos.models import Producto
 from datetime import datetime
 
+
+ESTADOS_SOLICITUD = [
+    ('PEND', 'Pendiente'),
+    ('APRO', 'Aprobada'),
+    ('CANC', 'Cancelada'),
+    ('COMP', 'Completada')
+]
+
 # Modelo de Solicitud
 class Solicitud(models.Model):
     id_solicitud = models.AutoField(primary_key=True, db_column='id_solicitud')
+    estado = models.CharField(max_length=4, choices=ESTADOS_SOLICITUD, default='PEND')
     id_almacen = models.ForeignKey(
         Almacen,
         on_delete=models.CASCADE,

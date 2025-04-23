@@ -13,16 +13,19 @@ proxy_auth = ProxyAutenticacion()
 def login(request):
     """Vista para el inicio de sesión con restricción de sesiones múltiples."""
     if request.method == "POST":
-        # Usamos el Proxy para autenticar
-        username = request.POST.get('username')
+        username = request.POST.get('username', '').strip()  # Obtener y eliminar espacios en blanco
+        password = request.POST.get('password', '').strip()  # Obtener y eliminar espacios en blanco
+
+        if not username or not password:
+            messages.error(request, 'Por favor, complete todos los campos.')
+            return render(request, 'login.html')
 
         # Verificar si ya hay una sesión activa para el usuario
         if proxy_auth.verificar_sesion_activa(username):
-            # Si ya existe una sesión activa
             messages.warning(request, 'Ya has iniciado sesión anteriormente.')
             return render(request, 'login.html')
 
-        # Si las credenciales son incorrectas, el proxy no autentica
+        # Usamos el Proxy para autenticar
         if not proxy_auth.autenticar(request):
             messages.error(request, 'Las credenciales son incorrectas.')
             return render(request, 'login.html')
@@ -31,7 +34,6 @@ def login(request):
         return redirect('home')
 
     return render(request, 'login.html')
-
 # ----------- Fin del patrón PROXY ----------- #
 
 # ----------- PATRÓN PROXY ----------- #

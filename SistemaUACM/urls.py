@@ -26,6 +26,7 @@ urlpatterns = [
     path('home/', views.home, name='home'),
     path('GestiondeProductos/', include('GestiondeProductos.urls')),
     path('Reportes/', include('Reportes.urls')),
+    path('Solicitudes/', include('Solicitudes.urls')),
 
 
 ]

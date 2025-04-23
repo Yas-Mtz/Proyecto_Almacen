@@ -83,8 +83,9 @@ environ.Env.read_env()  # Lee el archivo .env
 
 # Obtener la URL de la base de datos
 DATABASES = {
-    'default': env.db()  # Django automáticamente lo convertirá a la configuración adecuada
+    'default': env.db('DATABASE_URL')  # Usa la variable DATABASE_URL del archivo .env
 }
+
 
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -134,16 +135,16 @@ CSRF_COOKIE_NAME = 'csrftoken'
 # Almacenamiento en base de datos
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # Tiempo en segundos que la sesión será válida (1 hora)
-SESSION_COOKIE_AGE = 3600  # segundos
+SESSION_COOKIE_AGE = 30 # segundos
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # Configuración de archivos multimedia (QR, imágenes, etc.)
 
 # AGREGADO EN MIGRACIONES
 # Desactivar migraciones para estas apps
-MIGRATION_MODULES = {
-    'SistemaUACM': None
-}
+#MIGRATION_MODULES = {
+#    'SistemaUACM': None
+#}
 
 # Si usas el modelo Personal para autenticación
 #AUTH_USER_MODEL = 'SistemaUACM.Personal'
