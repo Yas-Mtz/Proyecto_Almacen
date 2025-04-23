@@ -1,5 +1,5 @@
 # Usa una imagen base de Python 3.11 slim
-FROM python:3.11-slim
+FROM python:3.13-alpine
 
 # dependencias necesarias para compilar mysqlclient
 RUN apt-get update && apt-get install -y gcc g++ libmariadb-dev pkg-config && rm -rf /var/lib/apt/lists/*

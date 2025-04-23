@@ -134,6 +134,10 @@ body {
     /* Prueba de animación simple */
     animation: girar 10s;
 }
+.swal2-popup {
+    font-size: 1.6rem !important;
+}
+    
 
 @keyframes girar {
     0% {

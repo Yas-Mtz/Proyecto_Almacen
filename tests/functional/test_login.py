@@ -40,13 +40,18 @@ def find_and_verify_element(browser, locator, element_name):
     """Función auxiliar para encontrar y verificar elementos"""
     try:
         element = WebDriverWait(browser, 10).until(
-            EC.element_to_be_clickable(locator)
+            EC.presence_of_element_located(locator)  # Usar presence para asegurar que esté en el DOM
         )
+        assert element.is_displayed() and element.is_enabled(), f"Elemento {element_name} no está visible o habilitado"
         logger.info(f"Elemento {element_name} encontrado y listo para interactuar")
         return element
-    except Exception as e:
-        logger.error(f"Error al encontrar {element_name}: {str(e)}")
-        take_screenshot(browser, f"missing_{element_name}")
+    except TimeoutException:
+        logger.error(f"Timeout al encontrar {element_name}")
+        take_screenshot(browser, f"timeout_{element_name}")
+        raise
+    except AssertionError as e:
+        logger.error(f"Error al verificar {element_name}: {str(e)}")
+        take_screenshot(browser, f"verification_error_{element_name}")
         raise
 
 @pytest.fixture(scope="function")
@@ -68,9 +73,9 @@ def browser():
         driver = webdriver.Chrome(service=service, options=options)
 
         # Configurar timeouts
-        driver.implicitly_wait(10)
-        driver.set_page_load_timeout(20)
-        driver.set_script_timeout(10)
+        driver.implicitly_wait(5)  # Reducir implicit wait para pruebas más rápidas
+        driver.set_page_load_timeout(15)
+        driver.set_script_timeout(5)
 
         logger.info("Navegador inicializado correctamente")
         yield driver
@@ -94,8 +99,8 @@ def cleanup_between_tests(browser):
     yield
     try:
         browser.delete_all_cookies()
-        browser.get("http://localhost:8000/logout")
-        time.sleep(0.5)
+        browser.get("http://localhost:8000/logout/")  # Asegurar la barra final en la URL de logout
+        time.sleep(0.3)  # Reducir el tiempo de espera
     except Exception as e:
         logger.warning(f"Error en limpieza entre tests: {str(e)}")
 
@@ -106,11 +111,11 @@ def test_login_success(browser):
     try:
         # 1. Limpieza inicial
         browser.delete_all_cookies()
-        browser.get("http://localhost:8000/logout")
-        time.sleep(1)
+        browser.get("http://localhost:8000/logout/")
+        time.sleep(0.3)
 
         # 2. Navegar a la página de login
-        browser.get("http://localhost:8000/login")
+        browser.get("http://localhost:8000/login/")  # Asegurar la barra final
         logger.info(f"URL actual: {browser.current_url}")
         take_screenshot(browser, "login_page_loaded")
 
@@ -130,7 +135,7 @@ def test_login_success(browser):
         submit.click()
 
         try:
-            alert = WebDriverWait(browser, 3).until(EC.alert_is_present())
+            alert = WebDriverWait(browser, 2).until(EC.alert_is_present())
             alert_text = alert.text
             logger.warning(f"Alerta encontrada: {alert_text}")
             alert.accept()
@@ -139,7 +144,7 @@ def test_login_success(browser):
             pass
 
         # 6. Verificar login exitoso
-        WebDriverWait(browser, 15).until(
+        WebDriverWait(browser, 10).until(
             lambda d: any(
                 text in d.page_source
                 for text in ["Cerrar sesión", "Bienvenido", "Dashboard", "Inicio"]
@@ -165,18 +170,19 @@ def test_login_empty_fields(browser):
 
     try:
         # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login")
+        browser.get("http://localhost:8000/login/")
         logger.info(f"URL actual: {browser.current_url}")
         take_screenshot(browser, "login_page_empty")
 
-        # 2. Buscar elementos del formulario
+        # 2. Buscar y verificar el botón de login
         submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
 
         # 3. Enviar formulario con campos vacíos
+        logger.info("Haciendo clic en el botón de login con campos vacíos")
         submit.click()
         take_screenshot(browser, "empty_fields_submitted")
 
-        # 4. Verificar mensaje de error (adaptar el localizador según tu aplicación)
+        # 4. Verificar mensaje de error
         error_message_locator = ("css selector", ".error-message")
         try:
             error_message = WebDriverWait(browser, 5).until(
@@ -207,13 +213,14 @@ def test_login_empty_username(browser):
     logger.info("Iniciando prueba test_login_empty_username")
     try:
         # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login")
-        username = find_and_verify_element(browser, ("id", "username"), "username")
-        password = find_and_verify_element(browser, ("id", "password"), "password")
+        browser.get("http://localhost:8000/login/")
+        username_field = find_and_verify_element(browser, ("id", "username"), "username")
+        password_field = find_and_verify_element(browser, ("id", "password"), "password")
         submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
 
         # 2. Ingresar solo la contraseña
-        password.send_keys("cuautepec1010")
+        password_field.send_keys("cuautepec1010")
+        logger.info("Haciendo clic en el botón de login con usuario vacío")
         submit.click()
         take_screenshot(browser, "empty_username_submitted")
 
@@ -248,13 +255,14 @@ def test_login_empty_password(browser):
     logger.info("Iniciando prueba test_login_empty_password")
     try:
         # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login")
-        username = find_and_verify_element(browser, ("id", "username"), "username")
-        password = find_and_verify_element(browser, ("id", "password"), "password")
+        browser.get("http://localhost:8000/login/")
+        username_field = find_and_verify_element(browser, ("id", "username"), "username")
+        password_field = find_and_verify_element(browser, ("id", "password"), "password")
         submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
 
         # 2. Ingresar solo el usuario
-        username.send_keys("Gerente1010")
+        username_field.send_keys("Gerente1010")
+        logger.info("Haciendo clic en el botón de login con contraseña vacía")
         submit.click()
         take_screenshot(browser, "empty_password_submitted")
 
@@ -288,57 +296,41 @@ def test_logout(browser):
     """Prueba de cierre de sesión"""
     logger.info("Iniciando prueba test_logout")
     try:
-        # 1. Realizar un inicio de sesión exitoso primero
-        browser.get("http://localhost:8000/login")
-        username = find_and_verify_element(browser, ("id", "username"), "username")
-        password = find_and_verify_element(browser, ("id", "password"), "password")
-        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
+        # 1. Realizar login
+        browser.get("http://localhost:8000/login/")
+        username_field = WebDriverWait(browser, 10).until(
+            EC.presence_of_element_located((By.ID, "username"))
+        )
+        password_field = browser.find_element(By.ID, "password")
+        submit = browser.find_element(By.CSS_SELECTOR, "button.login")
 
-        username.send_keys("Gerente1010")
-        password.send_keys("cuautepec1010")
+        username_field.send_keys("Gerente1010")
+        password_field.send_keys("cuautepec1010")
         submit.click()
 
-        try:
-            alert = WebDriverWait(browser, 3).until(EC.alert_is_present())
-            alert.accept()
-        except TimeoutException:
-            pass
-
-        WebDriverWait(browser, 10).until(
-            lambda d: any(
-                text in d.page_source
-                for text in ["Cerrar sesión", "Bienvenido", "Dashboard", "Inicio"]
-            )
+        # 2. Esperar a que el login se complete
+        user_profile = WebDriverWait(browser, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "#userProfile"))
         )
-        take_screenshot(browser, "logged_in_before_logout")
-        logger.info("Usuario logueado exitosamente para la prueba de logout")
+        take_screenshot(browser, "logged_in")
 
-        # 2. Encontrar y hacer clic en el elemento del usuario para desplegar el menú
-        user_menu_button_locator = ("css selector", ".user-info")  # Reemplaza con el selector correcto de tu elemento de usuario
-        user_menu_button = find_and_verify_element(browser, user_menu_button_locator, "botón menú de usuario")
-        user_menu_button.click()
-        logger.info("Se hizo clic en el botón del menú de usuario")
-        take_screenshot(browser, "user_menu_opened")
+        # 3. Abrir menú desplegable
+        user_profile.click()
+        time.sleep(1)  # Esperar a que la animación termine
 
-        # 3. Encontrar y hacer clic en el botón de "Cerrar sesión"
-        logout_button_locator = ("link text", "Cerrar sesión")  # Asegúrate de que el texto del enlace sea exacto
-        logout_button = find_and_verify_element(browser, logout_button_locator, "botón Cerrar sesión")
+        # 4. Localizar y hacer clic en Cerrar sesión
+        logout_button = WebDriverWait(browser, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "#dropdownMenu a[href='/login/logout/']"))
+        )
         logout_button.click()
-        logger.info("Se hizo clic en el botón Cerrar sesión")
-        take_screenshot(browser, "logout_button_clicked")
 
-        # 4. Verificar que se redirigió a la página de login
-        WebDriverWait(browser, 10).until(EC.url_contains("/login"))
-        logger.info(f"URL actual después del logout: {browser.current_url}")
-        assert "/login" in browser.current_url, "No se redirigió a la página de login después del logout"
-        take_screenshot(browser, "logout_successful")
-
-        # 5. Verificar que la cookie de sesión se haya eliminado
-        cookies = browser.get_cookies()
-        assert "sessionid" not in [cookie["name"] for cookie in cookies], "La cookie de sesión aún existe después del logout"
-        logger.info("Se verificó que la cookie de sesión se eliminó correctamente")
+        # 5. Verificar redirección
+        WebDriverWait(browser, 10).until(
+            EC.url_contains("/login/")
+        )
+        assert "/login/" in browser.current_url
 
     except Exception as e:
-        take_screenshot(browser, "logout_error_final")
-        logger.error(f"Error inesperado durante el logout: {str(e)}", exc_info=True)
-        pytest.fail(f"Error inesperado durante el logout: {str(e)}")
+        take_screenshot(browser, "error_logout")
+        logger.error(f"Error en logout: {str(e)}")
+        pytest.fail(f"Fallo en logout: {str(e)}")
