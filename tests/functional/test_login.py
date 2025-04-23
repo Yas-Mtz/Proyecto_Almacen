@@ -334,3 +334,209 @@ def test_logout(browser):
         take_screenshot(browser, "error_logout")
         logger.error(f"Error en logout: {str(e)}")
         pytest.fail(f"Fallo en logout: {str(e)}")
+
+
+# pruebas nuevas :)
+def test_login_invalid_credentials(browser):
+    """Prueba de inicio de sesión con credenciales incorrectas"""
+    logger.info("Iniciando prueba test_login_invalid_credentials")
+    
+    try:
+        # 1. Navegar a la página de login
+        browser.get("http://localhost:8000/login/")
+        logger.info(f"URL actual: {browser.current_url}")
+        take_screenshot(browser, "login_page_invalid_creds")
+
+        # 2. Buscar elementos del formulario
+        username = find_and_verify_element(browser, ("id", "username"), "username")
+        password = find_and_verify_element(browser, ("id", "password"), "password")
+        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
+
+        # 3. Ingresar credenciales incorrectas
+        username.clear()
+        username.send_keys("usuario_inexistente")
+        password.clear()
+        password.send_keys("contraseña_incorrecta")
+        take_screenshot(browser, "invalid_credentials_entered")
+
+        # 4. Enviar formulario
+        submit.click()
+
+        # 5. Verificar mensaje de error - Versión más flexible
+        error_message_locator = (By.CSS_SELECTOR, ".alert.alert-danger, .error-message, [class*='error']")
+        try:
+            error_message = WebDriverWait(browser, 5).until(
+                EC.visibility_of_element_located(error_message_locator)
+            )
+            error_text = error_message.text.lower()
+            logger.info(f"Mensaje de error encontrado: {error_text}")
+            
+            # Verificar cualquier mensaje que indique error de credenciales
+            assert any(msg in error_text for msg in ["incorrectas", "inválidas", "error", "credenciales"]), \
+                f"Mensaje de error no reconocido: {error_text}"
+            
+            take_screenshot(browser, "invalid_creds_error_displayed")
+        except TimeoutException:
+            logger.error("No se encontró mensaje de error para credenciales inválidas")
+            take_screenshot(browser, "no_invalid_creds_error")
+            pytest.fail("No se mostró mensaje de error para credenciales inválidas")
+
+        # 6. Verificar que NO se creó cookie de sesión
+        cookies = browser.get_cookies()
+        assert "sessionid" not in [cookie["name"] for cookie in cookies], \
+            "Se encontró cookie de sesión con credenciales inválidas"
+        logger.info("Se verificó que no se creó sesión con credenciales inválidas")
+
+    except Exception as e:
+        take_screenshot(browser, "invalid_creds_error_final")
+        logger.error(f"Error inesperado en prueba de credenciales inválidas: {str(e)}", exc_info=True)
+        pytest.fail(f"Error inesperado en prueba de credenciales inválidas: {str(e)}")
+
+
+def test_login_sql_injection(browser):
+    """Prueba de intento de inyección SQL en el formulario de login"""
+    logger.info("Iniciando prueba test_login_sql_injection")
+    
+    test_vectors = [
+        ("admin' --", "password"),
+        ("admin' OR '1'='1", "password"),
+        ("admin'/*", "password"),
+        ("' OR 1=1--", "password"),
+        ("\" OR \"\"=\"", "password")
+    ]
+
+    for i, (sql_user, sql_pass) in enumerate(test_vectors):
+        try:
+            logger.info(f"Probando vector SQLi {i+1}: usuario='{sql_user}', pass='{sql_pass}'")
+            
+            # 1. Navegar a la página de login
+            browser.get("http://localhost:8000/login/")
+            username = find_and_verify_element(browser, ("id", "username"), "username")
+            password = find_and_verify_element(browser, ("id", "password"), "password")
+            submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
+
+            # 2. Ingresar payload SQLi
+            username.clear()
+            username.send_keys(sql_user)
+            password.clear()
+            password.send_keys(sql_pass)
+            take_screenshot(browser, f"sql_injection_attempt_{i+1}")
+
+            # 3. Enviar formulario
+            submit.click()
+
+            # 4. Verificar comportamiento
+            # Caso ideal: debería mostrar mensaje de error o permanecer en login
+            WebDriverWait(browser, 5).until(
+                lambda d: "/login/" in d.current_url or 
+                         "error" in d.page_source.lower() or
+                         "invalid" in d.page_source.lower()
+            )
+            
+            # 5. Verificaciones de seguridad
+            current_url = browser.current_url
+            page_source = browser.page_source
+            
+            # No debería mostrar errores SQL en la página
+            assert "sql" not in page_source.lower(), "Se filtró información de SQL en la respuesta"
+            assert "syntax" not in page_source.lower(), "Se filtró información de sintaxis SQL"
+            
+            # No debería redirigir a dashboard/admin
+            assert "dashboard" not in current_url, f"Redirección exitosa con inyección SQL (vector {i+1})"
+            assert "admin" not in current_url, f"Acceso admin con inyección SQL (vector {i+1})"
+            
+            # No debería crear sesión
+            cookies = browser.get_cookies()
+            assert "sessionid" not in [cookie["name"] for cookie in cookies], \
+                f"Se creó sesión con inyección SQL (vector {i+1})"
+            
+            take_screenshot(browser, f"sql_injection_handled_{i+1}")
+            logger.info(f"Vector SQLi {i+1} manejado correctamente")
+
+        except Exception as e:
+            take_screenshot(browser, f"sql_injection_error_{i+1}")
+            logger.error(f"Error con vector SQLi {i+1}: {str(e)}", exc_info=True)
+            pytest.fail(f"Fallo en prueba de inyección SQL (vector {i+1}): {str(e)}")
+            
+            
+def test_login_xss_attempt(browser):
+    """Prueba de intento de XSS en el formulario de login"""
+    logger.info("Iniciando prueba test_login_xss_attempt")
+    
+    xss_vectors = [
+        ("<script>alert('XSS')</script>", "script"),
+        ("<img src=x onerror=alert('XSS')>", "img"),
+        ("\"><script>alert('XSS')</script>", "quote-script"),
+        ("javascript:alert('XSS')", "javascript")
+    ]
+
+    for payload, payload_type in xss_vectors:
+        try:
+            logger.info(f"Probando vector XSS ({payload_type}): '{payload}'")
+            
+            # 1. Navegar a la página de login (cada intento comienza con página fresca)
+            browser.get("http://localhost:8000/login/")
+            
+            # 2. Localizar elementos frescos cada vez
+            username = WebDriverWait(browser, 10).until(
+                EC.presence_of_element_located((By.ID, "username"))
+            )
+            password = browser.find_element(By.ID, "password")
+            submit = browser.find_element(By.CSS_SELECTOR, "button.login")
+
+            # 3. Ingresar payload XSS
+            username.clear()
+            username.send_keys(payload)
+            password.clear()
+            password.send_keys("password123")
+            take_screenshot(browser, f"xss_attempt_{payload_type}")
+
+            # 4. Enviar formulario
+            submit.click()
+            
+            # 5. Esperar a que se procese (puede redirigir o mostrar error)
+            time.sleep(2)  # Pequeña pausa para procesamiento
+            
+            # 6. Verificar que no se ejecutó el script
+            try:
+                alert = WebDriverWait(browser, 2).until(EC.alert_is_present())
+                alert_text = alert.text
+                alert.accept()
+                pytest.fail(f"XSS ejecutado ({payload_type}): {alert_text}")
+            except TimeoutException:
+                pass  # Comportamiento esperado - no alerta presente
+
+            # 7. Verificar protección XSS en la página actual
+            current_page = browser.page_source.lower()
+            
+            # Para payloads que deberían ser escapados
+            if payload_type in ["script", "img", "quote-script"]:
+                # Volver a encontrar el campo username si existe
+                try:
+                    current_username = browser.find_element(By.ID, "username").get_attribute("value") or ""
+                except NoSuchElementException:
+                    current_username = ""
+                
+                # Verificar que los caracteres especiales estén escapados
+                if "<" in payload or ">" in payload:
+                    assert "&lt;" in current_username or "&gt;" in current_username or \
+                           "<" not in current_username or ">" not in current_username, \
+                        f"Caracteres HTML no escapados en campo username ({payload_type})"
+            
+            # Verificación adicional en el contenido de la página
+            if payload_type == "script":
+                assert "<script>" not in current_page, "Etiqueta script encontrada en página"
+            elif payload_type == "img":
+                assert "onerror" not in current_page, "Atributo onerror encontrado en página"
+            elif payload_type == "quote-script":
+                assert "\"><script>" not in current_page, "Comillas escapadas incorrectamente"
+            elif payload_type == "javascript":
+                assert "javascript:" not in browser.current_url, "Protocolo javascript en URL"
+
+            take_screenshot(browser, f"xss_handled_{payload_type}")
+            logger.info(f"Vector XSS {payload_type} manejado correctamente")
+
+        except Exception as e:
+            take_screenshot(browser, f"xss_error_{payload_type}")
+            logger.error(f"Error con vector XSS {payload_type}: {str(e)}", exc_info=True)
+            pytest.fail(f"Fallo en prueba XSS ({payload_type}): {str(e)}")

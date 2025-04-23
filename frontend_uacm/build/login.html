@@ -40,12 +40,13 @@
             <button type="submit" class="login">Ingresar</button>
 
             {% if messages %}
-            <div class="messages">
+            <div class="error-message">
                 {% for message in messages %}
-                <div class="error-message">{{ message }}</div> {% endfor %}
+                <div>{{ message }}</div>
+                {% endfor %}
             </div>
             {% endif %}
-        </form>
+            </form>
 
     </div>
 

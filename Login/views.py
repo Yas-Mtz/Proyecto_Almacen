@@ -3,7 +3,9 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .Login_pattern import ProxyAutenticacion
 from django.contrib.auth import logout as django_logout
-
+from django.utils.html import escape
+from django.views.decorators.clickjacking import xframe_options_deny
+from django.views.decorators.csrf import csrf_protect
 # Instanciamos el ProxyAutenticacion para utilizarlo en las vistas
 proxy_auth = ProxyAutenticacion()
 
@@ -14,11 +16,12 @@ def login(request):
     """Vista para el inicio de sesión con restricción de sesiones múltiples."""
     print("--- Procesando la vista de login ---")
     if request.method == "POST":
-        username = request.POST.get('username', '').strip()  # Obtener y eliminar espacios en blanco
-        password = request.POST.get('password', '').strip()  # Obtener y eliminar espacios en blanco
+        username = escape(request.POST.get('username', '').strip())
+        password = escape(request.POST.get('password', '').strip())
+        # Obtener y eliminar espacios en blanco
 
-        print(f"Username recibido: '{username}'")
-        print(f"Password recibido: '{password}'")
+        print(f"Username recibido (escapado): '{username}'")
+        print(f"Password recibido (escapado): '{password}'")
 
         if not username or not password:
             messages.error(request, 'Por favor, complete todos los campos.')

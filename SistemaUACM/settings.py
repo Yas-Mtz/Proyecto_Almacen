@@ -135,7 +135,7 @@ CSRF_COOKIE_NAME = 'csrftoken'
 # Almacenamiento en base de datos
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # Tiempo en segundos que la sesión será válida (1 hora)
-SESSION_COOKIE_AGE = 30 # segundos
+SESSION_COOKIE_AGE = 300 # segundos
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # Configuración de archivos multimedia (QR, imágenes, etc.)
@@ -148,3 +148,4 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # Si usas el modelo Personal para autenticación
 #AUTH_USER_MODEL = 'SistemaUACM.Personal'
+
