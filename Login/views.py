@@ -6,83 +6,79 @@ from django.contrib.auth import logout as django_logout
 from django.utils.html import escape
 from django.views.decorators.clickjacking import xframe_options_deny
 from django.views.decorators.csrf import csrf_protect
-# Instanciamos el ProxyAutenticacion para utilizarlo en las vistas
+import logging
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 proxy_auth = ProxyAutenticacion()
 
-# ----------- PATRÓN PROXY ----------- #
-
-
+@csrf_protect
+@xframe_options_deny
 def login(request):
     """Vista para el inicio de sesión con restricción de sesiones múltiples."""
-    print("--- Procesando la vista de login ---")
-    if request.method == "POST":
-        username = escape(request.POST.get('username', '').strip())
-        password = escape(request.POST.get('password', '').strip())
-        # Obtener y eliminar espacios en blanco
-
-        print(f"Username recibido (escapado): '{username}'")
-        print(f"Password recibido (escapado): '{password}'")
-
-        if not username or not password:
-            messages.error(request, 'Por favor, complete todos los campos.')
-            print(f"Mensajes después de error de campos vacíos: {list(messages.get_messages(request))}")
-            return render(request, 'login.html')
-
-        # Verificar si ya hay una sesión activa para el usuario
-        if proxy_auth.verificar_sesion_activa(username):
-            messages.warning(request, 'Ya has iniciado sesión anteriormente.')
-            print(f"Mensajes después de sesión activa previa: {list(messages.get_messages(request))}")
-            return render(request, 'login.html')
-
-        # Usamos el Proxy para autenticar
-        if not proxy_auth.autenticar(request):
-            messages.error(request, 'Las credenciales son incorrectas.')
-            print(f"Mensajes después de error de autenticación: {list(messages.get_messages(request))}")
-            return render(request, 'login.html')
-
-        # Si la autenticación es exitosa, redirigir a la página de inicio
-        print("Autenticación exitosa, redirigiendo a home")
+    # Redirigir si ya está autenticado
+    if request.user.is_authenticated:
         return redirect('home')
 
-    print(f"Renderizando login.html sin POST. Mensajes: {list(messages.get_messages(request))}")
-    return render(request, 'login.html')
-# ----------- Fin del patrón PROXY ----------- #
+    if request.method == "POST":
+        try:
+            username = escape(request.POST.get('username', '').strip())
+            password = escape(request.POST.get('password', '').strip())
 
-# ----------- PATRÓN PROXY ----------- #
+            # Validación básica
+            if not username or not password:
+                messages.error(request, 'Por favor, complete todos los campos.')
+                return render(request, 'login.html')
 
+            # Verificar sesión activa
+            if proxy_auth.verificar_sesion_activa(username):
+                # Bloquear múltiples sesiones
+                messages.warning(request, 'Ya existe una sesión activa con este usuario.')
+                logger.warning(f"Intento de sesión múltiple para {username}")
+                return render(request, 'login.html')
+                
+            # Autenticación
+            if proxy_auth.autenticar(request):
+                next_url = request.POST.get('next', 'home')
+                logger.info(f"Login exitoso para {username}")
+                return redirect(next_url)
+            
+            # Credenciales inválidas
+            messages.error(request, 'Usuario o contraseña incorrectos.')
+            logger.warning(f"Intento fallido de login para {username}")
+
+        except Exception as e:
+            logger.error(f"Error en login: {str(e)}", exc_info=True)
+            messages.error(request, 'Error en el sistema. Por favor intente más tarde.')
+        
+        return render(request, 'login.html')
+
+    # GET request - mostrar formulario
+    return render(request, 'login.html', {
+        'next': request.GET.get('next', '')
+    })
 
 def logout(request):
     """Cierra la sesión del usuario y elimina su sesión activa"""
-    print("--- Procesando la vista de logout ---")
-    # Usamos el Proxy para cerrar sesión
-    proxy_auth.cerrar_sesion(request)
-    print("ProxyAutenticacion.cerrar_sesion() llamado")
-
-    # Llamada a Django logout
-    django_logout(request)
-    print("django_logout(request) llamado")
-
-    # Redirigimos al login y eliminamos la cookie de sesión
+    if request.user.is_authenticated:
+        username = request.user.username
+        try:
+            proxy_auth.cerrar_sesion(request)
+            django_logout(request)
+            messages.success(request, 'Has cerrado sesión correctamente.')
+            logger.info(f"Logout exitoso para {username}")
+        except Exception as e:
+            logger.error(f"Error en logout: {str(e)}", exc_info=True)
+            messages.error(request, 'Ocurrió un error al cerrar sesión.')
+    
     response = redirect('login')
-    response.delete_cookie('sessionid')
-    print("Cookie de sesión eliminada")
-
-    # Mensaje de éxito al cerrar sesión
-    messages.success(request, "Cierre de sesión realizado exitosamente.")
-    print(f"Mensajes después de logout exitoso: {list(messages.get_messages(request))}")
-
-    print("Redirigiendo a la página de login")
+    # Limpieza de cookies
+    for cookie in [settings.SESSION_COOKIE_NAME, settings.LANGUAGE_COOKIE_NAME]:
+        response.delete_cookie(cookie)
     return response
-
-# ----------- Fin del patrón PROXY ----------- #
-
-# ----------- PATRÓN TEMPLATE METHOD ----------- #
-
 
 @login_required
 def home(request):
     """Página principal después del login"""
     print("--- Procesando la vista de home ---")
     return render(request, 'home.html')
-
-# ----------- Fin del patrón TEMPLATE METHOD ----------- #

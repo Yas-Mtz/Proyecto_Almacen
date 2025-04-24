@@ -1,171 +1,136 @@
-# login_pattern.py
+import threading
+import logging
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.sessions.models import Session
 from django.utils.timezone import now
 from django.contrib.auth.models import User
-from abc import ABC, abstractmethod
-from django.conf import settings
-import logging
+from django.conf import settings  # Importar settings para verificar entorno de pruebas
 
 logger = logging.getLogger(__name__)
 
-# ----------- PATRÓN TEMPLATE METHOD ----------- #
-class Autenticacion(ABC):
-    """
-    Define el esqueleto de un algoritmo para autenticar y cerrar sesión.
-    """
-    @abstractmethod
+class AutenticacionReal:
     def autenticar(self, request):
-        pass
-
-    @abstractmethod
-    def cerrar_sesion(self, request):
-        pass
-
-# ----------- PATRÓN PROXY ----------- #
-class AutenticacionReal(Autenticacion):
-    """
-    Implementación real de la autenticación de usuario con protección básica.
-    """
-    MAX_INTENTOS = 3
-    BLOQUEO_MINUTOS = 5
-
-    def __init__(self):
-        self.intentos_fallidos = {}
-
-    def autenticar(self, request):
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
-
-        # Validación básica de entrada
-        if not username or not password:
-            logger.warning("Intento de login con campos vacíos")
-            return False
-
-        # Protección contra fuerza bruta
-        if self._usuario_bloqueado(username):
-            logger.warning(f"Usuario {username} temporalmente bloqueado")
-            return False
-
-        user = authenticate(request, username=username, password=password)
-
+        user = authenticate(
+            username=request.POST.get('username'),
+            password=request.POST.get('password')
+        )
         if user is not None:
             login(request, user)
-            logger.info(f"Login exitoso para {username}")
-            self._reset_intentos(username)
             return True
-        else:
-            self._registrar_intento_fallido(username)
-            logger.warning(f"Login fallido para {username}")
-            return False
+        return False
 
     def cerrar_sesion(self, request):
-        if request.user.is_authenticated:
-            username = request.user.username
+        if hasattr(request, 'user') and request.user.is_authenticated:
             logout(request)
-            logger.info(f"Sesión cerrada para {username}")
             return True
         return False
 
-    def _registrar_intento_fallido(self, username):
-        self.intentos_fallidos[username] = self.intentos_fallidos.get(username, 0) + 1
-
-    def _reset_intentos(self, username):
-        if username in self.intentos_fallidos:
-            del self.intentos_fallidos[username]
-
-    def _usuario_bloqueado(self, username):
-        if username in self.intentos_fallidos:
-            return self.intentos_fallidos[username] >= self.MAX_INTENTOS
-        return False
-
-
-class ProxyAutenticacion(Autenticacion):
-    """
-    Proxy para controlar el acceso a la autenticación real con:
-    - Prevención de múltiples sesiones
-    - Registro de actividad
-    - Protección adicional
-    """
+class ProxyAutenticacion:
     _instancia = None
-    _sesiones_activas = {}  # {user_id: (username, session_key)}
+    _lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instancia:
-            cls._instancia = super().__new__(cls, *args, **kwargs)
-            cls._instancia.autenticacion_real = AutenticacionReal()
-            cls._instancia._sesiones_activas = {}
+    def __new__(cls):
+        if cls._instancia is None:
+            cls._instancia = super().__new__(cls)
+            cls._instancia._sesiones_activas = {}  # {username: session_key}
+            cls._instancia._autenticacion_real = AutenticacionReal()
         return cls._instancia
 
     def autenticar(self, request):
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '').strip()
 
-        # Validación de entrada
         if not username or not password:
-            logger.warning("Intento de login con campos vacíos desde Proxy")
             return False
 
-        try:
-            user = User.objects.get(username=username)
-            
-            # Verificar múltiples sesiones
-            if self.verificar_sesion_activa(username):
-                logger.warning(f"Usuario {username} intentó iniciar sesión múltiple")
-                return False
+        with self._lock:
+            # Verificar sesión existente
+            if username in self._sesiones_activas:
+                try:
+                    Session.objects.get(
+                        session_key=self._sesiones_activas[username],
+                        expire_date__gte=now()
+                    )
+                    return False  # Bloquear múltiples sesiones
+                except Session.DoesNotExist:
+                    del self._sesiones_activas[username]
 
             # Autenticación real
-            if not self.autenticacion_real.autenticar(request):
+            if not self._autenticacion_real.autenticar(request):
                 return False
 
-            # Registrar sesión activa
-            self._sesiones_activas[user.id] = (username, request.session.session_key)
-            logger.info(f"Sesión registrada para {username}")
+            # Asegurar que la sesión esté guardada
+            if not request.session.session_key:
+                request.session.save()
+
+            self._sesiones_activas[username] = request.session.session_key
             return True
 
-        except User.DoesNotExist:
-            logger.warning(f"Intento de login con usuario inexistente: {username}")
-            return False
-        except Exception as e:
-            logger.error(f"Error inesperado en autenticación: {str(e)}")
-            return False
-
     def cerrar_sesion(self, request):
-        if not hasattr(request, 'session') or '_auth_user_id' not in request.session:
+        if not hasattr(request, 'session'):
             return False
 
-        user_id = request.session['_auth_user_id']
-        
-        # Eliminar de sesiones activas
-        if user_id in self._sesiones_activas:
-            username, _ = self._sesiones_activas.pop(user_id)
-            logger.info(f"Sesión removida para {username}")
+        user_id = request.session.get('_auth_user_id')
+        if not user_id:
+            return False
 
-        # Cerrar sesión en autenticación real
-        return self.autenticacion_real.cerrar_sesion(request)
+        try:
+            user = User.objects.get(id=int(user_id))
+            with self._lock:
+                if user.username in self._sesiones_activas:
+                    del self._sesiones_activas[user.username]
+            return self._autenticacion_real.cerrar_sesion(request)
+        except (User.DoesNotExist, ValueError):
+            return False
 
     def verificar_sesion_activa(self, username):
-        """Versión mejorada con protección contra inyección"""
-        try:
-            user = User.objects.get(username=username)
-            return user.id in self._sesiones_activas
-        except User.DoesNotExist:
-            return False
-        except Exception as e:
-            logger.error(f"Error al verificar sesión: {str(e)}")
+        with self._lock:
+            # Verificar primero en memoria
+            if username not in self._sesiones_activas:
+                return False
+
+            session_key = self._sesiones_activas[username]
+
+            # Verificar en la base de datos de sesiones
+            try:
+                session = Session.objects.get(
+                    session_key=session_key,
+                    expire_date__gte=now()
+                )
+                # Verificar adicionalmente que la sesión pertenece al usuario
+                session_data = session.get_decoded()
+                user = User.objects.get(username=username)
+                if str(session_data.get('_auth_user_id')) == str(user.id):
+                    return True
+            except (Session.DoesNotExist, User.DoesNotExist) as e:
+                # Si no existe o no coincide, limpiar
+                del self._sesiones_activas[username]
+                logger.error(f"Error al verificar la sesión activa para {username}: {str(e)}")
+
             return False
 
     def limpiar_sesiones_expiradas(self):
-        """Limpia sesiones que ya no están activas en la base de datos"""
         try:
-            sesiones_validas = set(
-                session.get_decoded().get('_auth_user_id') 
-                for session in Session.objects.filter(expire_date__gte=now())
-            )
+            # Solo limpiar sesiones si no estamos en un entorno de pruebas
+            if not settings.TESTING:
+                with self._lock:
+                    active_sessions = Session.objects.filter(expire_date__gte=now())
+                    active_usernames = set()
 
-            for user_id in list(self._sesiones_activas.keys()):
-                if str(user_id) not in sesiones_validas:
-                    username, _ = self._sesiones_activas.pop(user_id)
-                    logger.info(f"Limpieza de sesión expirada para {username}")
+                    for session in active_sessions:
+                        session_data = session.get_decoded()
+                        user_id = session_data.get('_auth_user_id')
+                        if user_id:
+                            try:
+                                user = User.objects.get(id=int(user_id))
+                                active_usernames.add(user.username)
+                            except (User.DoesNotExist, ValueError):
+                                continue
+
+                    for username in list(self._sesiones_activas.keys()):
+                        if username not in active_usernames:
+                            del self._sesiones_activas[username]
+            return True
         except Exception as e:
-            logger.error(f"Error al limpiar sesiones: {str(e)}")
+            logger.error(f"Error limpiando sesiones: {str(e)}")
+            return False

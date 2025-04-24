@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Configuración de logging
+# Configuración del logger
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -23,8 +23,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def take_screenshot(browser, name):
-    """Función auxiliar para capturas de pantalla con logging"""
+def take_screenshot(browser, name: str) -> str | None:
+    """Captura una pantalla del navegador y la guarda con timestamp."""
     try:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         filename = f"screenshots/{name}_{timestamp}.png"
@@ -33,30 +33,31 @@ def take_screenshot(browser, name):
         logger.info(f"Captura de pantalla guardada: {filename}")
         return filename
     except Exception as e:
-        logger.error(f"No se pudo tomar captura de pantalla: {str(e)}")
+        logger.error(f"No se pudo tomar la captura de pantalla: {e}")
         return None
 
-def find_and_verify_element(browser, locator, element_name):
-    """Función auxiliar para encontrar y verificar elementos"""
+def find_and_verify_element(browser, locator, element_name: str):
+    """Espera y verifica que un elemento esté presente, visible y habilitado."""
     try:
         element = WebDriverWait(browser, 10).until(
-            EC.presence_of_element_located(locator)  # Usar presence para asegurar que esté en el DOM
+            EC.presence_of_element_located(locator)
         )
-        assert element.is_displayed() and element.is_enabled(), f"Elemento {element_name} no está visible o habilitado"
-        logger.info(f"Elemento {element_name} encontrado y listo para interactuar")
+        assert element.is_displayed() and element.is_enabled(), \
+            f"Elemento '{element_name}' no está visible o habilitado"
+        logger.info(f"Elemento '{element_name}' encontrado y listo")
         return element
     except TimeoutException:
-        logger.error(f"Timeout al encontrar {element_name}")
+        logger.error(f"Timeout al encontrar el elemento '{element_name}'")
         take_screenshot(browser, f"timeout_{element_name}")
-        raise
+        pytest.fail(f"No se encontró el elemento '{element_name}' dentro del tiempo esperado")
     except AssertionError as e:
-        logger.error(f"Error al verificar {element_name}: {str(e)}")
+        logger.error(f"Error al verificar el elemento '{element_name}': {e}")
         take_screenshot(browser, f"verification_error_{element_name}")
-        raise
+        pytest.fail(str(e))
 
 @pytest.fixture(scope="function")
 def browser():
-    """Fixture para inicializar el navegador Chrome con logging"""
+    """Inicializa el navegador Chrome con opciones predeterminadas."""
     options = Options()
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -68,279 +69,310 @@ def browser():
 
     driver = None
     try:
-        logger.info("Inicializando el navegador Chrome...")
+        logger.info("Inicializando navegador Chrome...")
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
-        # Configurar timeouts
-        driver.implicitly_wait(5)  # Reducir implicit wait para pruebas más rápidas
+        driver.implicitly_wait(5)
         driver.set_page_load_timeout(15)
         driver.set_script_timeout(5)
 
-        logger.info("Navegador inicializado correctamente")
+        logger.info("Navegador listo para las pruebas")
         yield driver
 
     except Exception as e:
-        logger.error(f"Error al iniciar el navegador: {str(e)}", exc_info=True)
-        pytest.fail(f"Error al iniciar el navegador: {str(e)}")
+        logger.critical(f"Error al iniciar el navegador: {e}", exc_info=True)
+        pytest.fail(f"No se pudo iniciar el navegador: {e}")
 
     finally:
         if driver:
             try:
-                logger.info("Cerrando el navegador...")
+                logger.info("Cerrando navegador...")
                 driver.delete_all_cookies()
                 driver.quit()
                 logger.info("Navegador cerrado correctamente")
             except Exception as e:
-                logger.error(f"Error al cerrar el navegador: {str(e)}", exc_info=True)
+                logger.error(f"Error al cerrar el navegador: {e}", exc_info=True)
 
 @pytest.fixture(autouse=True)
 def cleanup_between_tests(browser):
+    """Limpieza automática entre pruebas para mantener el estado limpio."""
     yield
     try:
         browser.delete_all_cookies()
-        browser.get("http://localhost:8000/logout/")  # Asegurar la barra final en la URL de logout
-        time.sleep(0.3)  # Reducir el tiempo de espera
+        browser.get("http://localhost:8000/logout/")
+        time.sleep(0.3)
     except Exception as e:
-        logger.warning(f"Error en limpieza entre tests: {str(e)}")
+        logger.warning(f"Error al limpiar estado entre pruebas: {e}")
 
 def test_login_success(browser):
-    """Prueba de inicio de sesión exitoso con manejo mejorado"""
-    logger.info("Iniciando prueba test_login_success")
+    """Prueba de inicio de sesión exitoso con cierre de sesión"""
+    logger.info("==== Iniciando test_login_success ====")
 
     try:
-        # 1. Limpieza inicial
+        # Limpieza y acceso a la página de login
         browser.delete_all_cookies()
         browser.get("http://localhost:8000/logout/")
         time.sleep(0.3)
 
-        # 2. Navegar a la página de login
-        browser.get("http://localhost:8000/login/")  # Asegurar la barra final
+        browser.get("http://localhost:8000/login/")
         logger.info(f"URL actual: {browser.current_url}")
         take_screenshot(browser, "login_page_loaded")
 
-        # 3. Buscar elementos del formulario
-        username = find_and_verify_element(browser, ("id", "username"), "username")
-        password = find_and_verify_element(browser, ("id", "password"), "password")
-        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
+        # Localización de elementos del formulario
+        username = find_and_verify_element(browser, (By.ID, "username"), "campo usuario")
+        password = find_and_verify_element(browser, (By.ID, "password"), "campo contraseña")
+        submit_button = find_and_verify_element(browser, (By.CSS_SELECTOR, "button.login"), "botón de login")
 
-        # 4. Ingresar credenciales
+        # Ingreso de credenciales
         username.clear()
         username.send_keys("Gerente1010")
         password.clear()
         password.send_keys("cuautepec1010")
         take_screenshot(browser, "credentials_entered")
 
-        # 5. Enviar formulario y manejar alertas
-        submit.click()
+        # Envío del formulario
+        submit_button.click()
 
+        # Manejo de posibles alertas
         try:
             alert = WebDriverWait(browser, 2).until(EC.alert_is_present())
-            alert_text = alert.text
-            logger.warning(f"Alerta encontrada: {alert_text}")
+            logger.warning(f"Alerta mostrada: {alert.text}")
             alert.accept()
-            take_screenshot(browser, "alert_handled")
+            take_screenshot(browser, "alert_dismissed")
         except TimeoutException:
-            pass
+            logger.info("No se encontró alerta tras el login (comportamiento esperado)")
 
-        # 6. Verificar login exitoso
+        # Verificación de login exitoso
         WebDriverWait(browser, 10).until(
-            lambda d: any(
-                text in d.page_source
-                for text in ["Cerrar sesión", "Bienvenido", "Dashboard", "Inicio"]
-            )
+            lambda d: any(keyword in d.page_source for keyword in [
+                "Cerrar sesión", "Bienvenido", "Dashboard", "Inicio"
+            ])
         )
-        logger.info("Login exitoso detectado")
+        logger.info("Login exitoso confirmado")
         take_screenshot(browser, "login_success")
 
-        # 7. Verificar cookie de sesión
-        cookies = browser.get_cookies()
-        logger.info(f"Cookies encontradas: {len(cookies)}")
-        assert "sessionid" in [cookie["name"] for cookie in cookies], "No se encontró cookie de sesión"
-        logger.info("Sesión verificada correctamente")
+        # Verificar existencia de cookie de sesión
+        session_cookies = [cookie["name"] for cookie in browser.get_cookies()]
+        assert "sessionid" in session_cookies, "No se encontró la cookie de sesión"
+        logger.info("Cookie de sesión verificada correctamente")
 
-    except Exception as e:
-        take_screenshot(browser, "login_error_final")
-        logger.error(f"Error inesperado: {str(e)}", exc_info=True)
-        pytest.fail(f"Error inesperado: {str(e)}")
-
-def test_login_empty_fields(browser):
-    """Prueba de inicio de sesión con campos vacíos"""
-    logger.info("Iniciando prueba test_login_empty_fields")
-
-    try:
-        # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login/")
-        logger.info(f"URL actual: {browser.current_url}")
-        take_screenshot(browser, "login_page_empty")
-
-        # 2. Buscar y verificar el botón de login
-        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
-
-        # 3. Enviar formulario con campos vacíos
-        logger.info("Haciendo clic en el botón de login con campos vacíos")
-        submit.click()
-        take_screenshot(browser, "empty_fields_submitted")
-
-        # 4. Verificar mensaje de error
-        error_message_locator = ("css selector", ".error-message")
-        try:
-            error_message = WebDriverWait(browser, 5).until(
-                EC.visibility_of_element_located(error_message_locator)
-            )
-            logger.info(f"Mensaje de error encontrado: {error_message.text}")
-            assert "Por favor, complete todos los campos." in error_message.text, \
-                f"Mensaje de error incorrecto: {error_message.text}"
-            take_screenshot(browser, "empty_fields_error_displayed")
-        except TimeoutException:
-            logger.warning("No se encontró mensaje de error al dejar los campos vacíos.")
-            take_screenshot(browser, "no_empty_fields_error")
-            assert False, "No se mostró mensaje de error al dejar los campos vacíos"
-
-        # 5. Verificar que la cookie de sesión NO se haya creado
-        cookies = browser.get_cookies()
-        assert "sessionid" not in [cookie["name"] for cookie in cookies], \
-            "Se encontró cookie de sesión a pesar de los campos vacíos"
-        logger.info("Se verificó que no se creó la cookie de sesión con campos vacíos")
-
-    except Exception as e:
-        take_screenshot(browser, "empty_fields_error_final")
-        logger.error(f"Error inesperado en prueba de campos vacíos: {str(e)}", exc_info=True)
-        pytest.fail(f"Error inesperado en prueba de campos vacíos: {str(e)}")
-
-def test_login_empty_username(browser):
-    """Prueba de inicio de sesión con campo de usuario vacío"""
-    logger.info("Iniciando prueba test_login_empty_username")
-    try:
-        # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login/")
-        username_field = find_and_verify_element(browser, ("id", "username"), "username")
-        password_field = find_and_verify_element(browser, ("id", "password"), "password")
-        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
-
-        # 2. Ingresar solo la contraseña
-        password_field.send_keys("cuautepec1010")
-        logger.info("Haciendo clic en el botón de login con usuario vacío")
-        submit.click()
-        take_screenshot(browser, "empty_username_submitted")
-
-        # 3. Verificar mensaje de error
-        error_message_locator = ("css selector", ".error-message")
-        try:
-            error_message = WebDriverWait(browser, 5).until(
-                EC.visibility_of_element_located(error_message_locator)
-            )
-            logger.info(f"Mensaje de error encontrado: {error_message.text}")
-            assert "Por favor, complete todos los campos." in error_message.text, \
-                f"Mensaje de error incorrecto: {error_message.text}"
-            take_screenshot(browser, "empty_username_error_displayed")
-        except TimeoutException:
-            logger.warning("No se encontró mensaje de error al dejar el usuario vacío.")
-            take_screenshot(browser, "no_empty_username_error")
-            assert False, "No se mostró mensaje de error al dejar el usuario vacío"
-
-        # 4. Verificar que la cookie de sesión NO se haya creado
-        cookies = browser.get_cookies()
-        assert "sessionid" not in [cookie["name"] for cookie in cookies], \
-            "Se encontró cookie de sesión a pesar del usuario vacío"
-        logger.info("Se verificó que no se creó la cookie de sesión con usuario vacío")
-
-    except Exception as e:
-        take_screenshot(browser, "empty_username_error_final")
-        logger.error(f"Error inesperado en prueba de usuario vacío: {str(e)}", exc_info=True)
-        pytest.fail(f"Error inesperado en prueba de usuario vacío: {str(e)}")
-
-def test_login_empty_password(browser):
-    """Prueba de inicio de sesión con campo de contraseña vacío"""
-    logger.info("Iniciando prueba test_login_empty_password")
-    try:
-        # 1. Navegar a la página de login
-        browser.get("http://localhost:8000/login/")
-        username_field = find_and_verify_element(browser, ("id", "username"), "username")
-        password_field = find_and_verify_element(browser, ("id", "password"), "password")
-        submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
-
-        # 2. Ingresar solo el usuario
-        username_field.send_keys("Gerente1010")
-        logger.info("Haciendo clic en el botón de login con contraseña vacía")
-        submit.click()
-        take_screenshot(browser, "empty_password_submitted")
-
-        # 3. Verificar mensaje de error
-        error_message_locator = ("css selector", ".error-message")
-        try:
-            error_message = WebDriverWait(browser, 5).until(
-                EC.visibility_of_element_located(error_message_locator)
-            )
-            logger.info(f"Mensaje de error encontrado: {error_message.text}")
-            assert "Por favor, complete todos los campos." in error_message.text, \
-                f"Mensaje de error incorrecto: {error_message.text}"
-            take_screenshot(browser, "empty_password_error_displayed")
-        except TimeoutException:
-            logger.warning("No se encontró mensaje de error al dejar la contraseña vacía.")
-            take_screenshot(browser, "no_empty_password_error")
-            assert False, "No se mostró mensaje de error al dejar la contraseña vacía"
-
-        # 4. Verificar que la cookie de sesión NO se haya creado
-        cookies = browser.get_cookies()
-        assert "sessionid" not in [cookie["name"] for cookie in cookies], \
-            "Se encontró cookie de sesión a pesar de la contraseña vacía"
-        logger.info("Se verificó que no se creó la cookie de sesión con contraseña vacía")
-
-    except Exception as e:
-        take_screenshot(browser, "empty_password_error_final")
-        logger.error(f"Error inesperado en prueba de contraseña vacía: {str(e)}", exc_info=True)
-        pytest.fail(f"Error inesperado en prueba de contraseña vacía: {str(e)}")
-
-def test_logout(browser):
-    """Prueba de cierre de sesión"""
-    logger.info("Iniciando prueba test_logout")
-    try:
-        # 1. Realizar login
-        browser.get("http://localhost:8000/login/")
-        username_field = WebDriverWait(browser, 10).until(
-            EC.presence_of_element_located((By.ID, "username"))
-        )
-        password_field = browser.find_element(By.ID, "password")
-        submit = browser.find_element(By.CSS_SELECTOR, "button.login")
-
-        username_field.send_keys("Gerente1010")
-        password_field.send_keys("cuautepec1010")
-        submit.click()
-
-        # 2. Esperar a que el login se complete
+        # Acceso al perfil del usuario
         user_profile = WebDriverWait(browser, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "#userProfile"))
         )
-        take_screenshot(browser, "logged_in")
-
-        # 3. Abrir menú desplegable
+        take_screenshot(browser, "user_profile_loaded")
         user_profile.click()
-        time.sleep(1)  # Esperar a que la animación termine
+        time.sleep(0.5)
 
-        # 4. Localizar y hacer clic en Cerrar sesión
+        # Cierre de sesión
         logout_button = WebDriverWait(browser, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "#dropdownMenu a[href='/login/logout/']"))
         )
         logout_button.click()
 
-        # 5. Verificar redirección
+        # Verificación de redirección a login
+        WebDriverWait(browser, 10).until(EC.url_contains("/login/"))
+        assert "/login/" in browser.current_url, "No se redirigió a la página de login tras cerrar sesión"
+        logger.info("Cierre de sesión exitoso")
+        take_screenshot(browser, "logout_success")
+
+    except Exception as e:
+        take_screenshot(browser, "login_test_failure")
+        logger.error(f"Fallo en test_login_success: {e}", exc_info=True)
+        pytest.fail(f"Fallo inesperado en test_login_success: {e}")
+
+
+def test_login_empty_fields(browser):
+    """Prueba de inicio de sesión con campos vacíos"""
+    logger.info("==== Iniciando test_login_empty_fields ====")
+
+    try:
+        # Navegar a la página de login
+        browser.get("http://localhost:8000/login/")
+        logger.info(f"URL actual: {browser.current_url}")
+        take_screenshot(browser, "login_page_empty")
+
+        # Buscar botón de login
+        submit_button = find_and_verify_element(browser, (By.CSS_SELECTOR, "button.login"), "botón login")
+
+        # Clic en el botón sin llenar campos
+        logger.info("Enviando formulario con campos vacíos...")
+        submit_button.click()
+        take_screenshot(browser, "empty_fields_submitted")
+
+        # Verificar mensaje de error
+        try:
+            error_message = WebDriverWait(browser, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".error-message"))
+            )
+            logger.info(f"Mensaje de error mostrado: {error_message.text}")
+            assert "Por favor, complete todos los campos." in error_message.text, \
+                f"Mensaje de error inesperado: {error_message.text}"
+            take_screenshot(browser, "empty_fields_error_displayed")
+
+        except TimeoutException:
+            take_screenshot(browser, "empty_fields_no_error")
+            logger.warning("No se mostró mensaje de error al enviar campos vacíos.")
+            pytest.fail("No se mostró mensaje de error al enviar campos vacíos")
+
+        # Asegurar que no se creó una cookie de sesión
+        session_cookies = [cookie["name"] for cookie in browser.get_cookies()]
+        assert "sessionid" not in session_cookies, "Se creó una cookie de sesión con campos vacíos"
+        logger.info("Confirmado que no se creó cookie de sesión tras intento fallido")
+
+    except Exception as e:
+        take_screenshot(browser, "empty_fields_error_final")
+        logger.error(f"Fallo en test_login_empty_fields: {e}", exc_info=True)
+        pytest.fail(f"Fallo inesperado en test_login_empty_fields: {e}")
+
+
+def test_login_empty_username(browser):
+    """Prueba de inicio de sesión con campo de usuario vacío"""
+    logger.info("==== Iniciando test_login_empty_username ====")
+
+    try:
+        # Navegar a la página de login
+        browser.get("http://localhost:8000/login/")
+        take_screenshot(browser, "login_page_empty_username")
+
+        # Buscar campos y botón de envío
+        username_field = find_and_verify_element(browser, (By.ID, "username"), "campo username")
+        password_field = find_and_verify_element(browser, (By.ID, "password"), "campo password")
+        submit_button = find_and_verify_element(browser, (By.CSS_SELECTOR, "button.login"), "botón login")
+
+        # Ingresar solo la contraseña
+        password_field.clear()
+        password_field.send_keys("cuautepec1010")
+        logger.info("Clic en botón login con campo de usuario vacío")
+        submit_button.click()
+        take_screenshot(browser, "empty_username_submitted")
+
+        # Verificar mensaje de error
+        try:
+            error_message = WebDriverWait(browser, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".error-message"))
+            )
+            logger.info(f"Mensaje de error mostrado: {error_message.text}")
+            assert "Por favor, complete todos los campos." in error_message.text, \
+                f"Mensaje de error inesperado: {error_message.text}"
+            take_screenshot(browser, "empty_username_error_displayed")
+        except TimeoutException:
+            take_screenshot(browser, "no_error_empty_username")
+            logger.warning("No se mostró mensaje de error al dejar el campo username vacío.")
+            pytest.fail("No se mostró mensaje de error al dejar el campo username vacío")
+
+        # Verificar que no se haya creado la cookie de sesión
+        cookies = [cookie["name"] for cookie in browser.get_cookies()]
+        assert "sessionid" not in cookies, \
+            "Se creó una cookie de sesión a pesar del campo username vacío"
+        logger.info("Confirmado: no se creó cookie de sesión con campo username vacío")
+
+    except Exception as e:
+        take_screenshot(browser, "empty_username_error_final")
+        logger.error(f"Fallo inesperado en test_login_empty_username: {e}", exc_info=True)
+        pytest.fail(f"Fallo inesperado en test_login_empty_username: {e}")
+
+def test_login_empty_password(browser):
+    """Prueba de inicio de sesión con campo de contraseña vacío"""
+    logger.info("==== Iniciando test_login_empty_password ====")
+
+    try:
+        # Navegar a la página de login
+        browser.get("http://localhost:8000/login/")
+        take_screenshot(browser, "login_page_empty_password")
+
+        # Buscar elementos
+        username_field = find_and_verify_element(browser, (By.ID, "username"), "campo username")
+        password_field = find_and_verify_element(browser, (By.ID, "password"), "campo password")
+        submit_button = find_and_verify_element(browser, (By.CSS_SELECTOR, "button.login"), "botón login")
+
+        # Ingresar solo el nombre de usuario
+        username_field.clear()
+        username_field.send_keys("Gerente1010")
+        logger.info("Clic en botón login con campo de contraseña vacío")
+        submit_button.click()
+        take_screenshot(browser, "empty_password_submitted")
+
+        # Verificar mensaje de error
+        try:
+            error_message = WebDriverWait(browser, 5).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".error-message"))
+            )
+            logger.info(f"Mensaje de error mostrado: {error_message.text}")
+            assert "Por favor, complete todos los campos." in error_message.text, \
+                f"Mensaje de error inesperado: {error_message.text}"
+            take_screenshot(browser, "empty_password_error_displayed")
+        except TimeoutException:
+            take_screenshot(browser, "no_error_empty_password")
+            logger.warning("No se mostró mensaje de error al dejar la contraseña vacía.")
+            pytest.fail("No se mostró mensaje de error al dejar la contraseña vacía")
+
+        # Verificar que no se haya creado la cookie de sesión
+        cookies = [cookie["name"] for cookie in browser.get_cookies()]
+        assert "sessionid" not in cookies, \
+            "Se creó una cookie de sesión a pesar del campo de contraseña vacío"
+        logger.info("Confirmado: no se creó cookie de sesión con contraseña vacía")
+
+    except Exception as e:
+        take_screenshot(browser, "empty_password_error_final")
+        logger.error(f"Fallo inesperado en test_login_empty_password: {e}", exc_info=True)
+        pytest.fail(f"Fallo inesperado en test_login_empty_password: {e}")
+
+def test_logout(browser):
+    """Prueba de cierre de sesión"""
+    logger.info("==== Iniciando test_logout ====")
+
+    try:
+        # Navegar a la página de login
+        browser.get("http://localhost:8000/login/")
+        take_screenshot(browser, "login_for_logout")
+
+        # Llenar campos de login
+        username_field = WebDriverWait(browser, 10).until(
+            EC.presence_of_element_located((By.ID, "username"))
+        )
+        password_field = browser.find_element(By.ID, "password")
+        submit_button = browser.find_element(By.CSS_SELECTOR, "button.login")
+
+        username_field.send_keys("Gerente1010")
+        password_field.send_keys("cuautepec1010")
+        submit_button.click()
+
+        # Esperar a que el login sea exitoso
+        user_profile = WebDriverWait(browser, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "#userProfile"))
+        )
+        take_screenshot(browser, "logged_in_for_logout")
+
+        # Clic en el perfil y luego en Cerrar sesión
+        user_profile.click()
+        time.sleep(1)  # Esperar a que el menú se despliegue
+
+        logout_button = WebDriverWait(browser, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "#dropdownMenu a[href='/login/logout/']"))
+        )
+        logout_button.click()
+
+        # Verificar redirección a la página de login
         WebDriverWait(browser, 10).until(
             EC.url_contains("/login/")
         )
         assert "/login/" in browser.current_url
+        logger.info("Cierre de sesión exitoso y redirección confirmada")
+        take_screenshot(browser, "logout_success")
 
     except Exception as e:
         take_screenshot(browser, "error_logout")
-        logger.error(f"Error en logout: {str(e)}")
-        pytest.fail(f"Fallo en logout: {str(e)}")
+        logger.error(f"Fallo inesperado en test_logout: {e}", exc_info=True)
+        pytest.fail(f"Fallo inesperado en test_logout: {e}")
 
 
 # pruebas nuevas :)
 def test_login_invalid_credentials(browser):
     """Prueba de inicio de sesión con credenciales incorrectas"""
     logger.info("Iniciando prueba test_login_invalid_credentials")
-    
+
     try:
         # 1. Navegar a la página de login
         browser.get("http://localhost:8000/login/")
@@ -362,19 +394,16 @@ def test_login_invalid_credentials(browser):
         # 4. Enviar formulario
         submit.click()
 
-        # 5. Verificar mensaje de error - Versión más flexible
-        error_message_locator = (By.CSS_SELECTOR, ".alert.alert-danger, .error-message, [class*='error']")
+        # 5. Verificar mensaje de error
+        error_message_locator = ("css selector", ".error-message")
         try:
             error_message = WebDriverWait(browser, 5).until(
                 EC.visibility_of_element_located(error_message_locator)
             )
-            error_text = error_message.text.lower()
-            logger.info(f"Mensaje de error encontrado: {error_text}")
-            
-            # Verificar cualquier mensaje que indique error de credenciales
-            assert any(msg in error_text for msg in ["incorrectas", "inválidas", "error", "credenciales"]), \
-                f"Mensaje de error no reconocido: {error_text}"
-            
+            logger.info(f"Mensaje de error encontrado: {error_message.text}")
+            assert "Credenciales inválidas" in error_message.text or \
+                   "Usuario o contraseña incorrectos" in error_message.text, \
+                f"Mensaje de error incorrecto: {error_message.text}"
             take_screenshot(browser, "invalid_creds_error_displayed")
         except TimeoutException:
             logger.error("No se encontró mensaje de error para credenciales inválidas")
@@ -396,7 +425,7 @@ def test_login_invalid_credentials(browser):
 def test_login_sql_injection(browser):
     """Prueba de intento de inyección SQL en el formulario de login"""
     logger.info("Iniciando prueba test_login_sql_injection")
-    
+
     test_vectors = [
         ("admin' --", "password"),
         ("admin' OR '1'='1", "password"),
@@ -408,7 +437,7 @@ def test_login_sql_injection(browser):
     for i, (sql_user, sql_pass) in enumerate(test_vectors):
         try:
             logger.info(f"Probando vector SQLi {i+1}: usuario='{sql_user}', pass='{sql_pass}'")
-            
+
             # 1. Navegar a la página de login
             browser.get("http://localhost:8000/login/")
             username = find_and_verify_element(browser, ("id", "username"), "username")
@@ -425,31 +454,26 @@ def test_login_sql_injection(browser):
             # 3. Enviar formulario
             submit.click()
 
-            # 4. Verificar comportamiento
-            # Caso ideal: debería mostrar mensaje de error o permanecer en login
+            # 4. Verificar que no se otorgó acceso
             WebDriverWait(browser, 5).until(
-                lambda d: "/login/" in d.current_url or 
-                         "error" in d.page_source.lower() or
-                         "invalid" in d.page_source.lower()
+                lambda d: "/login/" in d.current_url or
+                          "error" in d.page_source.lower() or
+                          "invalid" in d.page_source.lower()
             )
-            
+
             # 5. Verificaciones de seguridad
             current_url = browser.current_url
             page_source = browser.page_source
-            
-            # No debería mostrar errores SQL en la página
+
             assert "sql" not in page_source.lower(), "Se filtró información de SQL en la respuesta"
             assert "syntax" not in page_source.lower(), "Se filtró información de sintaxis SQL"
-            
-            # No debería redirigir a dashboard/admin
-            assert "dashboard" not in current_url, f"Redirección exitosa con inyección SQL (vector {i+1})"
+            assert "dashboard" not in current_url, f"Redirección con inyección SQL (vector {i+1})"
             assert "admin" not in current_url, f"Acceso admin con inyección SQL (vector {i+1})"
-            
-            # No debería crear sesión
+
             cookies = browser.get_cookies()
             assert "sessionid" not in [cookie["name"] for cookie in cookies], \
                 f"Se creó sesión con inyección SQL (vector {i+1})"
-            
+
             take_screenshot(browser, f"sql_injection_handled_{i+1}")
             logger.info(f"Vector SQLi {i+1} manejado correctamente")
 
@@ -457,86 +481,61 @@ def test_login_sql_injection(browser):
             take_screenshot(browser, f"sql_injection_error_{i+1}")
             logger.error(f"Error con vector SQLi {i+1}: {str(e)}", exc_info=True)
             pytest.fail(f"Fallo en prueba de inyección SQL (vector {i+1}): {str(e)}")
-            
-            
+
+
 def test_login_xss_attempt(browser):
     """Prueba de intento de XSS en el formulario de login"""
     logger.info("Iniciando prueba test_login_xss_attempt")
-    
+
     xss_vectors = [
-        ("<script>alert('XSS')</script>", "script"),
-        ("<img src=x onerror=alert('XSS')>", "img"),
-        ("\"><script>alert('XSS')</script>", "quote-script"),
-        ("javascript:alert('XSS')", "javascript")
+        "<script>alert('XSS')</script>",
+        "<img src=x onerror=alert('XSS')>",
+        "\"><script>alert('XSS')</script>",
+        "javascript:alert('XSS')"
     ]
 
-    for payload, payload_type in xss_vectors:
+    for i, xss_payload in enumerate(xss_vectors):
         try:
-            logger.info(f"Probando vector XSS ({payload_type}): '{payload}'")
-            
-            # 1. Navegar a la página de login (cada intento comienza con página fresca)
-            browser.get("http://localhost:8000/login/")
-            
-            # 2. Localizar elementos frescos cada vez
-            username = WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located((By.ID, "username"))
-            )
-            password = browser.find_element(By.ID, "password")
-            submit = browser.find_element(By.CSS_SELECTOR, "button.login")
+            logger.info(f"Probando vector XSS {i+1}: '{xss_payload}'")
 
-            # 3. Ingresar payload XSS
+            # 1. Navegar a la página de login
+            browser.get("http://localhost:8000/login/")
+            username = find_and_verify_element(browser, ("id", "username"), "username")
+            password = find_and_verify_element(browser, ("id", "password"), "password")
+            submit = find_and_verify_element(browser, ("css selector", "button.login"), "botón login")
+
+            # 2. Ingresar payload XSS
             username.clear()
-            username.send_keys(payload)
+            username.send_keys(xss_payload)
             password.clear()
             password.send_keys("password123")
-            take_screenshot(browser, f"xss_attempt_{payload_type}")
+            take_screenshot(browser, f"xss_attempt_{i+1}")
 
-            # 4. Enviar formulario
+            # 3. Enviar formulario
             submit.click()
-            
-            # 5. Esperar a que se procese (puede redirigir o mostrar error)
-            time.sleep(2)  # Pequeña pausa para procesamiento
-            
-            # 6. Verificar que no se ejecutó el script
+            time.sleep(1)  # Esperar para detectar alertas
+
+            # 4. Verificar que no se ejecutó ningún script
             try:
-                alert = WebDriverWait(browser, 2).until(EC.alert_is_present())
+                alert = browser.switch_to.alert
                 alert_text = alert.text
                 alert.accept()
-                pytest.fail(f"XSS ejecutado ({payload_type}): {alert_text}")
-            except TimeoutException:
-                pass  # Comportamiento esperado - no alerta presente
+                pytest.fail(f"Se ejecutó XSS (alerta encontrada: {alert_text}) con vector {i+1}")
+            except:
+                pass  # No hubo alerta, comportamiento esperado
 
-            # 7. Verificar protección XSS en la página actual
-            current_page = browser.page_source.lower()
-            
-            # Para payloads que deberían ser escapados
-            if payload_type in ["script", "img", "quote-script"]:
-                # Volver a encontrar el campo username si existe
-                try:
-                    current_username = browser.find_element(By.ID, "username").get_attribute("value") or ""
-                except NoSuchElementException:
-                    current_username = ""
-                
-                # Verificar que los caracteres especiales estén escapados
-                if "<" in payload or ">" in payload:
-                    assert "&lt;" in current_username or "&gt;" in current_username or \
-                           "<" not in current_username or ">" not in current_username, \
-                        f"Caracteres HTML no escapados en campo username ({payload_type})"
-            
-            # Verificación adicional en el contenido de la página
-            if payload_type == "script":
-                assert "<script>" not in current_page, "Etiqueta script encontrada en página"
-            elif payload_type == "img":
-                assert "onerror" not in current_page, "Atributo onerror encontrado en página"
-            elif payload_type == "quote-script":
-                assert "\"><script>" not in current_page, "Comillas escapadas incorrectamente"
-            elif payload_type == "javascript":
-                assert "javascript:" not in browser.current_url, "Protocolo javascript en URL"
+            # 5. Verificar que el payload no se refleja sin escapar
+            page_source = browser.page_source
+            assert xss_payload not in page_source, f"Payload XSS reflejado sin escapar (vector {i+1})"
 
-            take_screenshot(browser, f"xss_handled_{payload_type}")
-            logger.info(f"Vector XSS {payload_type} manejado correctamente")
+            if "<" in xss_payload or ">" in xss_payload:
+                assert "&lt;" in page_source or "&gt;" in page_source, \
+                    f"Caracteres HTML no escapados (vector {i+1})"
+
+            take_screenshot(browser, f"xss_handled_{i+1}")
+            logger.info(f"Vector XSS {i+1} manejado correctamente")
 
         except Exception as e:
-            take_screenshot(browser, f"xss_error_{payload_type}")
-            logger.error(f"Error con vector XSS {payload_type}: {str(e)}", exc_info=True)
-            pytest.fail(f"Fallo en prueba XSS ({payload_type}): {str(e)}")
+            take_screenshot(browser, f"xss_error_{i+1}")
+            logger.error(f"Error con vector XSS {i+1}: {str(e)}", exc_info=True)
+            pytest.fail(f"Fallo en prueba XSS (vector {i+1}): {str(e)}")
