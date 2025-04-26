@@ -194,11 +194,12 @@ def gestiondeproductos(request):
                     imagen_url = None
                     imagen_nombre = None
                     if producto.imagen_producto:
+
                         try:
-                            imagen_url = producto.imagen_producto.url
-                            imagen_nombre = os.path.basename(producto.imagen_producto.name)
+                            imagen_url = settings.MEDIA_URL + str(producto.imagen_producto)
+                            imagen_nombre = os.path.basename(producto.imagen_producto)
                         except Exception as e:
-                            logger.warning(f"Error al obtener imagen: {str(e)}")
+                            logger.warning(f"Error al construir la URL de la imagen: {str(e)}")
 
                     return JsonResponse({
                         'status': 'success',
@@ -234,3 +235,31 @@ def gestiondeproductos(request):
             'next_id': next_id
         }
         return render(request, 'gestiondeproductos.html', context)
+
+#ajustar cantidad
+
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt  # Necesario si no estás usando tokens CSRF en las solicitudes AJAX
+def actualizar_stock(request):
+    if request.method == 'POST':
+        try:
+            # Obtener los datos del formulario
+            id_producto = request.POST.get('id_producto')
+            nueva_cantidad = int(request.POST.get('nueva_cantidad'))
+
+            if nueva_cantidad < 0:
+                return JsonResponse({'success': False, 'message': 'La cantidad no puede ser negativa'}, status=400)
+
+            # Buscar el producto
+            producto = Producto.objects.get(id_producto=id_producto)
+            producto.cantidad = nueva_cantidad
+            producto.save()
+
+            return JsonResponse({'success': True, 'message': 'Stock actualizado correctamente'})
+        
+        except Producto.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Producto no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)

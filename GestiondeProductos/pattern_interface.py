@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+
+"""métodos en las clases abstractas"""
 class Command(ABC):
     @abstractmethod
     def execute(self) -> Any:
