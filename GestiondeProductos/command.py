@@ -24,9 +24,16 @@ class AgregarProductoCommand(ProductCommand):
         self._producto_creado = None
 
     def validate(self) -> bool:
-        if self.cantidad < 0 or self.stock_minimo < 0:
-            raise ValidationError("Las cantidades no pueden ser negativas")
+        if self.cantidad <= 0 or self.stock_minimo <= 0:
+            raise ValidationError("Las cantidades no pueden ser negativas  o cero")
+
+    # Validar si ya existe un producto con el mismo nombre pero diferente ID
+        existente = Producto.objects.filter(nombre_producto__iexact=self.nombre_producto).exclude(id_producto=self.id_producto).first()
+        if existente:
+            raise ValidationError(f"El producto '{self.nombre_producto}' ya ha sido registrado con un ID diferente: {existente.id_producto}")
+
         return True
+
 
     def execute(self) -> Dict[str, Any]:
         try:
@@ -86,8 +93,8 @@ class ActualizarProductoCommand(ProductCommand):
         self._datos_originales = None
 
     def validate(self) -> bool:
-        if self.cantidad < 0 or self.stock_minimo < 0:
-            raise ValidationError("Las cantidades no pueden ser negativas")
+        if self.cantidad <= 0 or self.stock_minimo <= 0:
+            raise ValidationError("Las cantidades no pueden ser negativas o cero")
         return True
 
     def execute(self) -> Dict[str, Any]:

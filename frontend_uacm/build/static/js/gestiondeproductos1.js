@@ -1,7 +1,7 @@
 $(document).ready(function () {
   let searchTimeout = null;
   let nuevaImagenSeleccionada = false;
-  let cantidadActualBD = 0; // Almacena la cantidad actual de la BD
+  let cantidadActualBD = 0;
 
   function actualizarQR(id, nombre) {
     if (id && nombre) {
@@ -47,6 +47,7 @@ $(document).ready(function () {
   function validarFormulario() {
     let isValid = true;
     $(".error").removeClass("error");
+    $(".help-block").remove();
 
     const requiredFields = [
       "#id_producto",
@@ -75,27 +76,23 @@ $(document).ready(function () {
     const stockMinimo = parseInt($("#stock_minimo").val());
 
     if (isNaN(cantidad)) {
-      $("#cantidad").addClass("error");
-      $("#cantidad").after(
-        '<span class="help-block text-danger">Debe ser un número válido</span>'
-      );
+      $("#cantidad")
+        .addClass("error")
+        .after(
+          '<span class="help-block text-danger">Debe ser un número válido</span>'
+        );
       isValid = false;
     } else if (cantidad < 0) {
-      Swal.fire({
-        icon: "warning",
-        title: "Cantidad no válida",
-        text: "No se permiten números negativos en la cantidad a agregar.",
-        confirmButtonText: "Entendido",
-      });
       $("#cantidad").addClass("error");
       isValid = false;
     }
 
     if (isNaN(stockMinimo)) {
-      $("#stock_minimo").addClass("error");
-      $("#stock_minimo").after(
-        '<span class="help-block text-danger">Debe ser un número válido</span>'
-      );
+      $("#stock_minimo")
+        .addClass("error")
+        .after(
+          '<span class="help-block text-danger">Debe ser un número válido</span>'
+        );
       isValid = false;
     }
 
@@ -107,8 +104,7 @@ $(document).ready(function () {
     $("#nombre_producto").val(producto.nombre_producto);
     $("#descripcion_producto").val(producto.descripcion_producto);
 
-    cantidadActualBD = producto.cantidad; // Guardamos la cantidad real de la BD
-    //$("#cantidad").val(cantidadActualBD); // Mostramos la cantidad desde la BD en el formulario
+    cantidadActualBD = producto.cantidad;
 
     $("#stock_minimo").val(producto.stock_minimo);
     $("#observaciones").val(producto.observaciones);
@@ -139,15 +135,7 @@ $(document).ready(function () {
     e.preventDefault();
     const id_producto = $("#buscar").val().trim();
 
-    if (!id_producto) {
-      alert("Por favor ingrese un ID de producto");
-      return;
-    }
-
-    if (!/^\d+$/.test(id_producto)) {
-      alert("El ID de producto debe ser un número");
-      return;
-    }
+    if (!id_producto || !/^\d+$/.test(id_producto)) return;
 
     $("#loader").show();
 
@@ -158,13 +146,7 @@ $(document).ready(function () {
       success: function (response) {
         if (response.status === "success") {
           cargarDatosProducto(response);
-        } else {
-          alert(response.message || "Producto no encontrado");
         }
-      },
-      error: function (xhr, status, error) {
-        console.error("Error al consultar el producto:", error);
-        alert("Error al consultar el producto");
       },
       complete: function () {
         $("#loader").hide();
@@ -175,21 +157,16 @@ $(document).ready(function () {
   $("#btn-guardar").on("click", function (event) {
     event.preventDefault();
 
-    if (!validarFormulario()) {
-      return;
-    }
+    if (!validarFormulario()) return;
 
-    // Obtenemos la cantidad a agregar
     const cantidadAAgregar = parseInt($("#cantidad").val()) || 0;
-
-    // Calculamos la nueva cantidad total
     const nuevaCantidad = cantidadActualBD + cantidadAAgregar;
 
     const formData = new FormData();
     formData.append("id_producto", $("#id_producto").val());
     formData.append("nombre_producto", $("#nombre_producto").val());
     formData.append("descripcion_producto", $("#descripcion_producto").val());
-    formData.append("cantidad", nuevaCantidad); // Enviamos la cantidad total
+    formData.append("cantidad", nuevaCantidad);
     formData.append("stock_minimo", $("#stock_minimo").val());
     formData.append("id_estatus", $("#id_estatus").val());
     formData.append("id_categoria", $("#id_categoria").val());
@@ -209,6 +186,8 @@ $(document).ready(function () {
       }
     }
 
+    // CMABIO
+    location.reload();
     $("#loader").show();
 
     $.ajax({
@@ -219,38 +198,10 @@ $(document).ready(function () {
       contentType: false,
       success: function (response) {
         if (response.success) {
-          // Actualizamos la cantidad actual con el nuevo valor
           cantidadActualBD = nuevaCantidad;
-
-          Swal.fire({
-            title: "¡Actualización exitosa!",
-            html: `<p>Producto actualizado correctamente</p>
-                       <p><strong>Cantidad agregada:</strong> ${cantidadAAgregar}</p>
-                       <p><strong>Nuevo stock total:</strong> ${nuevaCantidad}</p>`,
-            icon: "success",
-            confirmButtonText: "Aceptar",
-          }).then((result) => {
-            if (result.isConfirmed) {
-              // Limpiamos el campo de cantidad después de guardar
-              $("#cantidad").val("");
-              // Actualizamos el QR con la nueva cantidad
-              actualizarQR(
-                $("#id_producto").val(),
-                $("#nombre_producto").val()
-              );
-            }
-          });
-        } else {
-          Swal.fire(
-            "Error",
-            response.message || "Error al actualizar el producto",
-            "error"
-          );
+          $("#cantidad").val("");
+          actualizarQR($("#id_producto").val(), $("#nombre_producto").val());
         }
-      },
-      error: function (xhr, status, error) {
-        console.error("Error:", error);
-        Swal.fire("Error", "Error al comunicarse con el servidor", "error");
       },
       complete: function () {
         $("#loader").hide();
@@ -262,35 +213,10 @@ $(document).ready(function () {
     e.preventDefault();
     const id = $("#id_producto").val();
     const nombre = $("#nombre_producto").val();
-    const cantidad = $("#cantidad").val();
-    const stock_minimo = $("#stock_minimo").val();
-    const id_estatus = $("#id_estatus").val();
-    const id_categoria = $("#id_categoria").val();
-    const id_marca = $("#id_marca").val();
-    const id_unidad = $("#id_unidad").val();
-    const descripcion_producto = $("#descripcion_producto").val();
-    const observaciones = $("#observaciones").val();
-    const imagen_producto = $("#imagen_producto")[0].files[0];
 
-    if (
-      !id ||
-      !nombre ||
-      !cantidad ||
-      !stock_minimo ||
-      !id_estatus ||
-      !id_categoria ||
-      !id_marca ||
-      !id_marca ||
-      !id_unidad ||
-      !descripcion_producto ||
-      !observaciones ||
-      !imagen_producto
-    ) {
-      alert("Por favor ingresa los datos solicitados");
-      return;
+    if (id && nombre) {
+      actualizarQR(id, nombre);
     }
-
-    actualizarQR(id, nombre);
   });
 
   $("#imagen_producto").on("change", function () {
@@ -365,69 +291,41 @@ $(document).ready(function () {
     }).then((result) => {
       if (result.isConfirmed) {
         let ajuste = parseInt(result.value) || 0;
+        if (ajuste <= cantidadActual) {
+          let nuevaCantidad = cantidadActual - ajuste;
+          $("#cantidad").val(nuevaCantidad);
 
-        if (ajuste > cantidadActual) {
-          Swal.fire({
-            icon: "error",
-            title: "Ajuste no válido",
-            text: "No puedes eliminar más unidades de las que tienes en stock.",
-          });
-          return;
-        }
+          const formData = new FormData();
+          formData.append("id_producto", $("#id_producto").val());
+          formData.append("nueva_cantidad", nuevaCantidad);
+          formData.append(
+            "csrfmiddlewaretoken",
+            $('input[name="csrfmiddlewaretoken"]').val()
+          );
 
-        let nuevaCantidad = cantidadActual - ajuste;
+          $("#loader").show();
 
-        // Actualizamos el campo de cantidad en la interfaz
-        $("#cantidad").val(nuevaCantidad);
-
-        // Enviar la nueva cantidad al servidor
-        const formData = new FormData();
-        formData.append("id_producto", $("#id_producto").val());
-        formData.append("nueva_cantidad", nuevaCantidad);
-        formData.append(
-          "csrfmiddlewaretoken",
-          $('input[name="csrfmiddlewaretoken"]').val()
-        );
-
-        $("#loader").show(); // Mostrar el loader mientras se procesa la solicitud
-
-        $.ajax({
-          url: "/GestiondeProductos/actualizar_stock/",
-          method: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          success: function (response) {
-            if (response.success) {
-              Swal.fire({
-                title: "Ajuste realizado",
-                html: `<p>Cantidad eliminada: ${ajuste}</p><p><strong>Nuevo stock total:</strong> ${nuevaCantidad}</p>`,
-                icon: "success",
-                confirmButtonText: "Aceptar",
-              }).then(() => {
+          $.ajax({
+            url: "/GestiondeProductos/actualizar_stock/",
+            method: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+              if (response.success) {
                 cantidadActualBD = nuevaCantidad;
-                location.reload(); // Recargar la página después del ajuste
-              });
-            } else {
-              Swal.fire(
-                "Error",
-                response.message || "Error al actualizar el stock",
-                "error"
-              );
-            }
-          },
-          error: function (xhr, status, error) {
-            Swal.fire("Error", "Error al comunicarse con el servidor", "error");
-          },
-          complete: function () {
-            $("#loader").hide(); // Ocultar el loader cuando se complete la solicitud
-          },
-        });
+                location.reload();
+              }
+            },
+            complete: function () {
+              $("#loader").hide();
+            },
+          });
+        }
       }
     });
   });
 
-  // Inicialización
   $("#id_producto").prop("readonly", true);
   $("#qr-image").hide();
   $("#image-preview").hide();
