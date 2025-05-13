@@ -103,6 +103,7 @@ $(document).ready(function () {
     $("#id_producto").val(producto.id_producto).prop("readonly", true);
     $("#nombre_producto").val(producto.nombre_producto);
     $("#descripcion_producto").val(producto.descripcion_producto);
+    $("#cantidad").val(producto.cantidad);
 
     cantidadActualBD = producto.cantidad;
 
@@ -291,37 +292,53 @@ $(document).ready(function () {
     }).then((result) => {
       if (result.isConfirmed) {
         let ajuste = parseInt(result.value) || 0;
-        if (ajuste <= cantidadActual) {
-          let nuevaCantidad = cantidadActual - ajuste;
-          $("#cantidad").val(nuevaCantidad);
 
-          const formData = new FormData();
-          formData.append("id_producto", $("#id_producto").val());
-          formData.append("nueva_cantidad", nuevaCantidad);
-          formData.append(
-            "csrfmiddlewaretoken",
-            $('input[name="csrfmiddlewaretoken"]').val()
-          );
-
-          $("#loader").show();
-
-          $.ajax({
-            url: "/GestiondeProductos/actualizar_stock/",
-            method: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function (response) {
-              if (response.success) {
-                cantidadActualBD = nuevaCantidad;
-                location.reload();
-              }
-            },
-            complete: function () {
-              $("#loader").hide();
-            },
-          });
+        // Primero verificar que el ajuste no sea negativo
+        if (ajuste < 0) {
+          Swal.fire("Error", "No se permiten números negativos", "error");
+          return false;
         }
+
+        // Luego verificar que no sea mayor que la cantidad actual
+        if (ajuste > cantidadActual) {
+          Swal.fire(
+            "Error",
+            "No puede ajustar más de lo que tiene en stock",
+            "error"
+          );
+          return false;
+        }
+
+        let nuevaCantidad = cantidadActual - ajuste;
+
+        $("#cantidad").val(nuevaCantidad);
+
+        const formData = new FormData();
+        formData.append("id_producto", $("#id_producto").val());
+        formData.append("nueva_cantidad", nuevaCantidad);
+        formData.append(
+          "csrfmiddlewaretoken",
+          $('input[name="csrfmiddlewaretoken"]').val()
+        );
+
+        $("#loader").show();
+
+        $.ajax({
+          url: "/GestiondeProductos/actualizar_stock/",
+          method: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: function (response) {
+            if (response.success) {
+              cantidadActualBD = nuevaCantidad;
+              location.reload();
+            }
+          },
+          complete: function () {
+            $("#loader").hide();
+          },
+        });
       }
     });
   });

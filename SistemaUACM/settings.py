@@ -107,9 +107,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es'
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Mexico_City'
+
 
 USE_I18N = True
 
@@ -135,17 +137,7 @@ CSRF_COOKIE_NAME = 'csrftoken'
 # Almacenamiento en base de datos
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # Tiempo en segundos que la sesión será válida (1 hora)
-SESSION_COOKIE_AGE = 300 # segundos
+SESSION_COOKIE_AGE = 1800 # segundos
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-# Configuración de archivos multimedia (QR, imágenes, etc.)
-
-# AGREGADO EN MIGRACIONES
-# Desactivar migraciones para estas apps
-#MIGRATION_MODULES = {
-#    'SistemaUACM': None
-#}
-
-# Si usas el modelo Personal para autenticación
-#AUTH_USER_MODEL = 'SistemaUACM.Personal'
 
