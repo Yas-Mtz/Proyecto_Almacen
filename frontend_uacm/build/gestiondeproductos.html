@@ -12,13 +12,13 @@
     
     
     <!-- Hojas de estilo -->
-    <link rel="stylesheet" href="{% static 'css/gestiondeproductos1.css' %}">
+    <link rel="stylesheet" href="{% static 'css/GestiondeProductos3.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Scripts con carga diferida -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
-    <script src="{% static 'js/gestiondeproductos2.js' %}" defer></script>
+    <script src="{% static 'js/Gestiondeproductos.js' %}" defer></script>
 </head>
 <body>
     
@@ -57,6 +57,20 @@
                   
             <form id="product-form" method="POST" action="/GestiondeProductos/" enctype="multipart/form-data" novalidate role="form">
                 {% csrf_token %}
+                {% if messages %}
+  <div id="messages">
+    {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+
+
+
+
                 <input type="hidden" name="action" value="add">
                 <input type="hidden" id="current_product_id">
 

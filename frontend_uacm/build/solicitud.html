@@ -8,28 +8,13 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/solicitud.css' %}">
+    <link rel="stylesheet" href="{% static 'css/solicitud2.css' %}">
     <script src="{% static 'js/solicitud.js' %}" defer></script>
 </head>
 
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <h2>UACM Almacén</h2>
-            </div>
-            <nav>
-                <ul>
-                    <li><a href="{% url 'home' %}">Inicio</a></li>
-                    <li><a href="#" class="active">Solicitudes</a></li>
-                    <li><a href="#">Productos</a></li>
-                    <li><a href="#">Almacenes</a></li>
-                    <li><a href="#">Reportes</a></li>
-                </ul>
-            </nav>
-        </aside>
-
+     
         <!-- Main Content -->
         <main class="main-content">
             <header class="page-header">
@@ -48,20 +33,7 @@
                         <input type="hidden" id="user-id" value="{{ user.id }}">
                         
                         <div class="form-group">
-                            <label>Lector QR</label>
-                            <button id="qr-scanner-btn" type="button" class="btn btn-primary">
-                                <i class="fas fa-qrcode"></i> Escanear QR
-                              </button>
-                              <button id="qr-scanner-stop-btn" type="button" class="btn btn-danger" style="display:none;">
-                                <i class="fas fa-stop"></i> Detener
-                              </button>
-                            <video id="qr-video" style="display:none; width:20%;"></video>
-                            <canvas id="qr-canvas" style="display:none;"></canvas>
-                            <div id="qr-result" class="mt-2"></div>
-                          </div>
-
-
-                        <div class="form-row">
+                            <div class="form-row">
                             <div class="form-group">
                                 <label for="matricula">Matrícula</label>
                                 <input type="text" id="matricula">

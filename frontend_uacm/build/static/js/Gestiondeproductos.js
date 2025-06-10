@@ -29,7 +29,7 @@ $(document).ready(function () {
           document.body.removeChild(a);
         });
 
-      $("#qr-image").on("load", function () {
+      $("#qr-image").one("load", function () {
         $("#loader").hide();
       });
     }
@@ -75,25 +75,30 @@ $(document).ready(function () {
     const cantidad = parseInt($("#cantidad").val());
     const stockMinimo = parseInt($("#stock_minimo").val());
 
-    if (isNaN(cantidad)) {
+    if (isNaN(cantidad) || cantidad < 0) {
       $("#cantidad")
         .addClass("error")
         .after(
-          '<span class="help-block text-danger">Debe ser un número válido</span>'
+          '<span class="help-block text-danger">Debe ser un número válido y no negativo</span>'
         );
-      isValid = false;
-    } else if (cantidad < 0) {
-      $("#cantidad").addClass("error");
       isValid = false;
     }
 
-    if (isNaN(stockMinimo)) {
+    if (isNaN(stockMinimo) || stockMinimo < 0) {
       $("#stock_minimo")
         .addClass("error")
         .after(
-          '<span class="help-block text-danger">Debe ser un número válido</span>'
+          '<span class="help-block text-danger">Debe ser un número válido y no negativo</span>'
         );
       isValid = false;
+    }
+
+    if (!isValid) {
+      Swal.fire({
+        icon: "error",
+        title: "Formulario incompleto o con errores",
+        text: "Por favor, complete todos los campos requeridos correctamente.",
+      });
     }
 
     return isValid;
@@ -103,10 +108,8 @@ $(document).ready(function () {
     $("#id_producto").val(producto.id_producto).prop("readonly", true);
     $("#nombre_producto").val(producto.nombre_producto);
     $("#descripcion_producto").val(producto.descripcion_producto);
-    $("#cantidad").val(producto.cantidad);
-
-    cantidadActualBD = producto.cantidad;
-
+    $("#cantidad").val(""); // Dejar vacío para sumar nuevas existencias
+    cantidadActualBD = parseInt(producto.cantidad) || 0;
     $("#stock_minimo").val(producto.stock_minimo);
     $("#observaciones").val(producto.observaciones);
 
@@ -136,7 +139,14 @@ $(document).ready(function () {
     e.preventDefault();
     const id_producto = $("#buscar").val().trim();
 
-    if (!id_producto || !/^\d+$/.test(id_producto)) return;
+    if (!id_producto || !/^\d+$/.test(id_producto)) {
+      Swal.fire({
+        icon: "warning",
+        title: "Búsqueda inválida",
+        text: "Por favor, ingresa un ID de producto válido (solo números).",
+      });
+      return;
+    }
 
     $("#loader").show();
 
@@ -147,7 +157,20 @@ $(document).ready(function () {
       success: function (response) {
         if (response.status === "success") {
           cargarDatosProducto(response);
+        } else {
+          Swal.fire({
+            icon: "info",
+            title: "Producto no encontrado",
+            text: "No se encontró ningún producto con ese ID.",
+          });
         }
+      },
+      error: function () {
+        Swal.fire({
+          icon: "error",
+          title: "Error en la búsqueda",
+          text: "Ocurrió un error al buscar el producto.",
+        });
       },
       complete: function () {
         $("#loader").hide();
@@ -187,8 +210,6 @@ $(document).ready(function () {
       }
     }
 
-    // CMABIO
-    location.reload();
     $("#loader").show();
 
     $.ajax({
@@ -202,7 +223,28 @@ $(document).ready(function () {
           cantidadActualBD = nuevaCantidad;
           $("#cantidad").val("");
           actualizarQR($("#id_producto").val(), $("#nombre_producto").val());
+
+          Swal.fire({
+            icon: "success",
+            title: "Producto guardado",
+            text: "El producto se guardó correctamente.",
+          }).then(() => {
+            location.reload();
+          });
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Hubo un problema al guardar el producto.",
+          });
         }
+      },
+      error: function () {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Ocurrió un error en la solicitud al servidor.",
+        });
       },
       complete: function () {
         $("#loader").hide();
@@ -212,12 +254,15 @@ $(document).ready(function () {
 
   $("#generate-qr-btn").on("click", function (e) {
     e.preventDefault();
-    const id = $("#id_producto").val();
-    const nombre = $("#nombre_producto").val();
 
-    if (id && nombre) {
-      actualizarQR(id, nombre);
+    if (!validarFormulario()) {
+      return;
     }
+
+    const id = $("#id_producto").val().trim();
+    const nombre = $("#nombre_producto").val().trim();
+
+    actualizarQR(id, nombre);
   });
 
   $("#imagen_producto").on("change", function () {
@@ -293,20 +338,18 @@ $(document).ready(function () {
       if (result.isConfirmed) {
         let ajuste = parseInt(result.value) || 0;
 
-        // Primero verificar que el ajuste no sea negativo
         if (ajuste < 0) {
           Swal.fire("Error", "No se permiten números negativos", "error");
-          return false;
+          return;
         }
 
-        // Luego verificar que no sea mayor que la cantidad actual
         if (ajuste > cantidadActual) {
           Swal.fire(
             "Error",
             "No puede ajustar más de lo que tiene en stock",
             "error"
           );
-          return false;
+          return;
         }
 
         let nuevaCantidad = cantidadActual - ajuste;
@@ -332,7 +375,14 @@ $(document).ready(function () {
           success: function (response) {
             if (response.success) {
               cantidadActualBD = nuevaCantidad;
-              location.reload();
+
+              Swal.fire({
+                icon: "success",
+                title: "Ajuste exitoso",
+                text: "Se ha ajustado correctamente la cantidad.",
+              }).then(() => {
+                location.reload();
+              });
             }
           },
           complete: function () {

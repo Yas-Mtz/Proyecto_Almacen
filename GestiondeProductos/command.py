@@ -4,7 +4,8 @@ from django.shortcuts import get_object_or_404
 from .pattern_interface import ProductCommand
 from django.conf import settings
 import os
-from typing import Dict, Any  # Importación faltante
+from typing import Dict, Any  # Importación necesaria para anotaciones de tipo
+
 
 class AgregarProductoCommand(ProductCommand):
     def __init__(self, id_producto, nombre_producto, descripcion_producto, cantidad, 
@@ -24,16 +25,15 @@ class AgregarProductoCommand(ProductCommand):
         self._producto_creado = None
 
     def validate(self) -> bool:
-        if self.cantidad <= 0 or self.stock_minimo <= 0:
-            raise ValidationError("Las cantidades no pueden ser negativas  o cero")
-
-    # Validar si ya existe un producto con el mismo nombre pero diferente ID
+        if self.cantidad < 0 or self.stock_minimo < 0:
+            raise ValidationError("Las cantidades no pueden ser negativas")
+        
+        # Validar si ya existe un producto con el mismo nombre pero diferente ID
         existente = Producto.objects.filter(nombre_producto__iexact=self.nombre_producto).exclude(id_producto=self.id_producto).first()
         if existente:
             raise ValidationError(f"El producto '{self.nombre_producto}' ya ha sido registrado con un ID diferente: {existente.id_producto}")
 
         return True
-
 
     def execute(self) -> Dict[str, Any]:
         try:
@@ -66,14 +66,15 @@ class AgregarProductoCommand(ProductCommand):
     def undo(self) -> bool:
         if self._producto_creado:
             try:
-                if self._producto_creado.imagen_producto:
+                if self._producto_creado.imagen_producto and hasattr(self._producto_creado.imagen_producto, 'path'):
                     if os.path.isfile(self._producto_creado.imagen_producto.path):
                         os.remove(self._producto_creado.imagen_producto.path)
                 self._producto_creado.delete()
                 return True
-            except:
+            except Exception:
                 return False
         return False
+
 
 class ActualizarProductoCommand(ProductCommand):
     def __init__(self, id_producto, nombre_producto, descripcion_producto, cantidad, 
@@ -93,8 +94,8 @@ class ActualizarProductoCommand(ProductCommand):
         self._datos_originales = None
 
     def validate(self) -> bool:
-        if self.cantidad <= 0 or self.stock_minimo <= 0:
-            raise ValidationError("Las cantidades no pueden ser negativas o cero")
+        if self.cantidad < 0 or self.stock_minimo < 0:
+            raise ValidationError("Las cantidades no pueden ser negativas")
         return True
 
     def execute(self) -> Dict[str, Any]:
@@ -153,7 +154,5 @@ class ActualizarProductoCommand(ProductCommand):
             producto.imagen_producto = self._datos_originales['imagen']
             producto.save()
             return True
-        except:
+        except Exception:
             return False
-# ajustar cantidad de producto
-

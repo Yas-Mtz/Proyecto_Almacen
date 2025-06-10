@@ -2,6 +2,7 @@ import os
 import qrcode
 import logging
 import glob
+
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
@@ -9,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Producto, Estatus, CategoriaProducto, Marca, UnidadMedida
 from .command import AgregarProductoCommand, ActualizarProductoCommand
@@ -25,12 +27,11 @@ def generar_qr_temp(data):
     )
     qr.add_data(data)
     qr.make(fit=True)
-    img = qr.make_image(fill='black', back_color='white')
+    img = qr.make_image(fill_color='black', back_color='white')  # fill_color en lugar de fill
     return img
 
 
-
-def guardar_imagen_categoria(imagen_file, id_producto, categoria_nombre, producto_existente=None):
+def guardar_imagen_categoria(imagen_file, id_producto, categoria_nombre):
     """Guarda o actualiza la imagen en la carpeta según la categoría, eliminando cualquier imagen anterior del producto."""
     safe_categoria = ''.join(c for c in categoria_nombre if c.isalnum() or c in (' ', '_')).rstrip()
     safe_categoria = safe_categoria.replace(' ', '_').lower()
@@ -70,6 +71,7 @@ def generar_qr_view(request):
     img.save(response, "PNG")
     response['Cache-Control'] = 'no-store'
     return response
+
 
 @login_required(login_url='')
 def gestiondeproductos(request):
@@ -112,10 +114,10 @@ def gestiondeproductos(request):
             if cantidad < 0 or stock_minimo < 0:
                 raise ValidationError("Las cantidades no pueden ser negativas")
 
-            Estatus.objects.get(id_estatus=estatus_id)
+            estatus = Estatus.objects.get(id_estatus=estatus_id)
             categoria = CategoriaProducto.objects.get(id_categoria=categoria_id)
-            Marca.objects.get(id_marca=marca_id)
-            UnidadMedida.objects.get(id_unidad=unidad_id)
+            marca = Marca.objects.get(id_marca=marca_id)
+            unidad = UnidadMedida.objects.get(id_unidad=unidad_id)
 
             imagen_path = None
             if imagen_producto:
@@ -140,7 +142,10 @@ def gestiondeproductos(request):
 
             if is_ajax:
                 return JsonResponse(result)
-            messages.success(request, result['message']) if result['success'] else messages.error(request, result['message'])
+            if result['success']:
+                messages.success(request, result['message'])
+            else:
+                messages.error(request, result['message'])
             return redirect('gestiondeproductos')
 
         except ValidationError as e:
@@ -194,10 +199,9 @@ def gestiondeproductos(request):
                     imagen_url = None
                     imagen_nombre = None
                     if producto.imagen_producto:
-
                         try:
                             imagen_url = settings.MEDIA_URL + str(producto.imagen_producto)
-                            imagen_nombre = os.path.basename(producto.imagen_producto)
+                            imagen_nombre = os.path.basename(str(producto.imagen_producto))
                         except Exception as e:
                             logger.warning(f"Error al construir la URL de la imagen: {str(e)}")
 
@@ -236,30 +240,32 @@ def gestiondeproductos(request):
         }
         return render(request, 'gestiondeproductos.html', context)
 
-#ajustar cantidad
-
-
-from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt  # Necesario si no estás usando tokens CSRF en las solicitudes AJAX
 def actualizar_stock(request):
     if request.method == 'POST':
         try:
-            # Obtener los datos del formulario
             id_producto = request.POST.get('id_producto')
-            nueva_cantidad = int(request.POST.get('nueva_cantidad'))
+            nueva_cantidad_str = request.POST.get('nueva_cantidad')
+            if nueva_cantidad_str is None:
+                return JsonResponse({'success': False, 'message': 'No se proporcionó la cantidad'}, status=400)
+            nueva_cantidad = int(nueva_cantidad_str)
 
             if nueva_cantidad < 0:
                 return JsonResponse({'success': False, 'message': 'La cantidad no puede ser negativa'}, status=400)
 
-            # Buscar el producto
             producto = Producto.objects.get(id_producto=id_producto)
             producto.cantidad = nueva_cantidad
             producto.save()
 
             return JsonResponse({'success': True, 'message': 'Stock actualizado correctamente'})
-        
+
         except Producto.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Producto no encontrado'}, status=404)
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Cantidad inválida'}, status=400)
         except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+            logger.error(f"Error al actualizar stock: {str(e)}", exc_info=True)
+            return JsonResponse({'success': False, 'message': 'Error interno'}, status=500)
+    else:
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)

@@ -1,0 +1,427 @@
+/* Variables de color */
+:root {
+    --primary-color: #3c6cef;
+    --secondary-color: #5d6d7e;
+    --header-bg: #2a3c4f;
+    --header-hover: #1c2a37;
+    --text-light: #ffffff;
+    --text-dark: #222325;
+    --success-color: #28a745;
+    --deleted-color: #dc3545;
+    --warning-color: #ffc107;
+}
+
+/* Reset y base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    user-select: none;
+    background: linear-gradient(135deg, #6e7b8b, #5d6d7e);
+    color: var(--text-dark);
+    height: 100vh;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.6;
+}
+
+/* Header */
+header.header {
+    background-color: var(--header-bg);
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 35px;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    transition: background-color 0.3s ease-in-out;
+}
+
+header.header:hover {
+    background-color: var(--header-hover);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    animation: girar 10s infinite linear;
+}
+
+.home-button {
+    font-size: 1.5rem;
+    color: var(--text-light);
+    text-decoration: none;
+}
+
+.home-button:hover {
+    color: var(--primary-color);
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    background: #ccc;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.user-profile:hover {
+    transform: scale(1.1);
+    background-color: #1e90ff;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    padding: 10px;
+    z-index: 1000;
+    width: 150px;
+    transition: opacity 0.3s ease;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 8px;
+    text-decoration: none;
+    color: black;
+}
+
+.dropdown-menu a:hover {
+    background: #ddd;
+}
+
+/* Main Content */
+.main-content {
+    padding: 2rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+.welcome-box {
+    background-color: #4b8d9b;
+    color: white;
+    padding: 10px;
+    width: 80%;
+    border-radius: 15px;
+    font-size: 1.3em;
+    animation: fadeInWelcome 3s ease-out;
+}
+
+.options {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    animation: fadeInUp 1s ease-out;
+    margin-bottom: 20px;
+}
+
+.card {
+    background-color: #34495e;
+    color: white;
+    width: 250px;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.card .icon {
+    font-size: 50px;
+    color: #f39c12;
+    margin-bottom: 15px;
+}
+
+.card h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+}
+
+.card p {
+    font-size: 16px;
+    margin-bottom: 20px;
+    color: #ecf0f1;
+}
+
+.arrow {
+    display: inline-block;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 50%;
+    color: white;
+    transition: transform 0.3s ease;
+    animation: slideArrow 1.5s infinite ease-in-out;
+}
+
+.arrow:hover {
+    transform: scale(1.1);
+}
+
+.blue { background-color: #1e90ff; }
+.orange { background-color: #f39c12; }
+green { background-color: #27ae60; }
+
+/* Form Styles */
+.form-container {
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 80%;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    flex: 1 1 45%;
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: var(--secondary-color);
+}
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+input:read-only {
+    background-color: #e9ecef;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+textarea { resize: vertical; }
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.quantity-btn,
+#adjust-stock {
+    background-color: var(--primary-color);
+    border: none;
+    color: var(--text-light);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.quantity-btn:hover,
+#adjust-stock:hover {
+    background-color: var(--header-hover);
+}
+
+#stock-warning {
+    margin-top: 0.5rem;
+    color: var(--warning-color);
+}
+
+.file-upload input[type="file"] {
+    display: none;
+}
+
+.file-upload-label {
+    background-color: var(--secondary-color);
+    color: var(--text-light);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.file-upload-label:hover {
+    background-color: var(--header-hover);
+}
+
+#file-name {
+    margin-top: 0.5rem;
+    color: var(--secondary-color);
+}
+
+.image-preview {
+    margin-top: 1rem;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+}
+
+.btn-primary:hover {
+    background-color: var(--header-hover);
+}
+
+.btn-tertiary {
+    background-color: var(--secondary-color);
+    color: var(--text-light);
+}
+
+.btn-tertiary:hover {
+    background-color: var(--header-hover);
+}
+
+.btn-download {
+    background-color: var(--success-color);
+    color: var(--text-light);
+}
+
+.btn-download:hover {
+    background-color: #218838;
+}
+
+.qr-container {
+    margin-top: 3rem;
+    background-color: #fff;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    width: 80%;
+}
+
+.qr-content {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.qr-info-item {
+    margin-bottom: 1rem;
+    color: var(--secondary-color);
+}
+
+.qr-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--secondary-color);
+    font-size: 1.2rem;
+    padding: 1rem;
+    border: 2px dashed var(--secondary-color);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+
+/*mensajes*/
+
+.help-block {
+  display: block;         /* Que ocupe línea completa debajo */
+  margin-top: 4px;        /* Separación sutil sobre el mensaje */
+  font-size: 0.85rem;
+  color: var(--deleted-color); /* rojo definido en tus variables */
+  min-height: 1.2em;      /* espacio fijo para evitar salto al aparecer o desaparecer */
+  line-height: 1.2em;
+}
+
+
+footer.footer {
+    background-color: var(--header-bg);
+    color: var(--text-light);
+    text-align: center;
+    padding: 1rem;
+    margin-top: auto;
+    font-weight: bold;
+    width: 100%;
+    animation: fadeIn 2s ease-out;
+}
+
+/* Animaciones */
+@keyframes girar {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeInWelcome {
+    0% { opacity: 0; transform: translateY(-20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideArrow {
+    0% { transform: translateX(-10px); }
+    50% { transform: translateX(10px); }
+    100% { transform: translateX(-10px); }
+}
+
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
