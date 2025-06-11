@@ -105,6 +105,10 @@ $(document).ready(function () {
   }
 
   function cargarDatosProducto(producto) {
+    // 🔽 Limpiar errores previos
+    $(".error").removeClass("error");
+    $(".help-block").remove();
+
     $("#id_producto").val(producto.id_producto).prop("readonly", true);
     $("#nombre_producto").val(producto.nombre_producto);
     $("#descripcion_producto").val(producto.descripcion_producto);

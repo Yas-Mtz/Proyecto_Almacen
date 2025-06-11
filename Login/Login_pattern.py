@@ -7,7 +7,8 @@ from django.contrib.auth.models import User
 from django.conf import settings  # Importar settings para verificar entorno de pruebas
 
 logger = logging.getLogger(__name__)
-
+#patroness usados proxy y singleton
+# proxy Añade una capa de lógica adicional (como evitar múltiples sesiones) antes de delegar la autenticación real.
 class AutenticacionReal:
     def autenticar(self, request):
         user = authenticate(
