@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UACM Login</title>
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="login-container">
+        <h2 class="welcome-message">¡Bienvenido al sistema!</h2>
+
+        <div class="logo">
+            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
+        </div>
+
+        <form method="POST" action="{% url 'login' %}">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="username"><i class="fas fa-user"></i> Usuario</label>
+                <div class="sec-2">
+                    <ion-icon name="mail-outline"></ion-icon>
+                    <input type="text" name="username" id="username" placeholder="Ingresa tu usuario" autocomplete="username">
+                </div>
+            </div>
+
+            <div class="form-group password-input">
+                <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
+                <div class="sec-2">
+                    <input class="pas" type="password" name="password" id="password" placeholder="············" autocomplete="current-password">
+                    <button type="button" class="toggle-password" aria-label="Mostrar u ocultar contraseña">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="login">Ingresar</button>
+        </form>
+    </div>
+
+    {% if messages %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for message in messages %}
+        Swal.fire({
+            icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% elif message.tags == "success" %}success{% else %}info{% endif %}',
+            title: '{{ message|escapejs }}',
+            confirmButtonText: 'Aceptar',
+            timer: 4000,
+            timerProgressBar: true
+        });
+        {% endfor %}
+    });
+    </script>
+    {% endif %}
+
+    <script>
+        // Mostrar / Ocultar contraseña
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function () {
+                let passwordInput = this.previousElementSibling;
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    passwordInput.type = 'password';
+                    this.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

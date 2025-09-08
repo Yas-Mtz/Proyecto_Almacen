@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Solicitud de Artículos - UACM</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/solicitud2.css' %}">
+    <script src="{% static 'js/solicitud.js' %}" defer></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+     
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="page-header">
+                <h1>Solicitud de Artículos</h1>
+                <div class="user-profile">
+                    <i class="fas fa-user-circle"></i>
+                    <span class="user-name">Bienvenido, {{ user.username }}</span>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- Formulario de nueva solicitud -->
+                <section class="card new-request">
+                    <h2>Nueva Solicitud</h2>
+                    <form id="form-solicitud" data-url="{% url 'crear_solicitud' %}">
+                        <input type="hidden" id="user-id" value="{{ user.id }}">
+                        
+                        <div class="form-group">
+                            <div class="form-row">
+                            <div class="form-group">
+                                <label for="matricula">Matrícula</label>
+                                <input type="text" id="matricula">
+                            </div>
+                            <div class="form-group">
+                                <label for="nombre">Nombre</label>
+                                <input type="text" id="nombre" >
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <select name="id_rol" id="id_rol" class="form-control" >
+                                <option value="">Seleccione un cargo</option>
+                                {% for rol in roles %}
+                                    <option value="{{ rol.id_rol }}">{{ rol.nombre_rol }}</option>
+                                {% endfor %}
+                            </select>
+                            
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="almacen">Almacén Destino</label>
+                                <select id="almacen" >
+                                    <option value="">Seleccione un almacén</option>
+                                    {% for almacen in almacenes %}
+                                    <option value="{{ almacen.id_almacen }}">{{ almacen.id_talmacen.tipo_almacen }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha">Fecha</label>
+                                <input type="text" id="fecha" value="{% now 'Y-m-d H:i' %}" readonly>
+                            </div>
+                        </div>
+
+                        <h3>Productos a Solicitar</h3>
+                        <div class="product-selection">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="producto">Producto</label>
+                                    <select id="producto">
+                                        <option value="">Seleccione un producto</option>
+                                        {% for producto in productos %}
+                                        <option value="{{ producto.id_producto }}" data-nombre="{{ producto.nombre_producto }}">
+                                            {{ producto.nombre_producto }} (Disponibles: {{ producto.cantidad }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cantidad">Cantidad</label>
+                                    <input type="number" id="cantidad" min="1" value="1">
+                                </div>
+                                <button type="button" class="btn-add" id="btn-agregar">Agregar</button>
+                            </div>
+
+                            <table class="selected-products">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productos-seleccionados">
+                                    <!-- Productos agregados aparecerán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="observaciones">Observaciones</label>
+                            <textarea id="observaciones" rows="2" name="observaciones_solicitud"></textarea>
+                        </div>
+                        
+                        <div class="form-group export-format">
+                            <label>Formato de exportación:</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="export-format" value="pdf" checked> PDF</label>
+                                <label><input type="radio" name="export-format" value="csv"> CSV</label>
+                                <label><input type="radio" name="export-format" value="print"> Imprimir</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="correo">Correo</label>
+                            <input type="email" id="correo" value="{{ user.email }}" readonly>
+                        </div>
+                        <button type="submit" class="btn-submit">Enviar Solicitud</button>
+                    </form>
+                </section>
+
+                <!-- Detalle de la solicitud actual con ID y opciones de exportación -->
+                <section class="card current-request" id="detalle-solicitud-container" style="display: none;">
+                    <div class="request-header">
+                        <h2>Detalle de la Solicitud <span id="detalle-id-solicitud" class="request-id">#0000</span></h2>
+                        <div class="export-options">
+                            <button class="btn-export" id="btn-pdf">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                            <button class="btn-export" id="btn-csv">
+                                <i class="fas fa-file-csv"></i> CSV
+                            </button>
+                            <button class="btn-export" id="btn-print">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="request-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Matrícula:</span>
+                            <span id="detalle-matricula" class="detail-value">{{ user.username }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Solicitante:</span>
+                            <span id="detalle-solicitante" class="detail-value">{{ user.get_full_name|default:user.username }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Almacén Destino:</span>
+                            <span id="detalle-almacen" class="detail-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fecha:</span>
+                            <span id="detalle-fecha" class="detail-value">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Observaciones:</span>
+                            <span id="detalle-observaciones" class="detail-value">-</span>
+                        </div>
+                        
+                        <!-- Sección de estatus -->
+                        <div class="detail-row status-row">
+                            <span class="detail-label">Estatus:</span>
+                            <span id="detalle-estatus" class="status-badge status-solicitado">Solicitado</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de control de estatus -->
+                    <div class="status-control" id="status-control">
+                        <h3><i class="fas fa-tasks"></i> Control de Entrega</h3>
+                        <div class="status-options">
+                            <select id="cambio-estatus">
+                                <option value="SOL">Entrega Completa</option>
+                                <option value="PRE">Parcialmente Entregada</option>
+                                <option value="ENT">Cancelada</option>
+                            </select>
+                            <button id="btn-actualizar-estatus" class="btn-status">
+                                <i class="fas fa-sync-alt"></i> Actualizar
+                            </button>
+                        </div>
+                        <div id="motivo-pendiente" class="motivo-field">
+                            <label for="motivo">Motivo de demora:</label>
+                            <textarea id="motivo" placeholder="Especificar razón del retraso o cancelación"></textarea>
+                        </div>
+                    </div>
+                    
+                    <h3>Productos solicitados</h3>
+                    <div class="request-products-container">
+                        <table class="request-products">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Estatus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detalle-productos">
+                                <!-- Productos de la solicitud actual aparecerán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Historial de estatus -->
+                    <div class="status-history">
+                        <h4><i class="fas fa-history"></i> Historial de Estatus</h4>
+                        <ul id="historial-estatus">
+                            <li>
+                                <span class="status-change">Solicitud creada</span>
+                                <span class="status-date">{% now 'd/m/Y H:i A' %}</span>
+                            </li>
+                            <!-- Historial se llenará dinámicamente -->
+                        </ul>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button id="btn-cancelar-solicitud" class="btn-cancel">
+                            <i class="fas fa-times-circle"></i> Cancelar Solicitud
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+
+</body>
+</html>

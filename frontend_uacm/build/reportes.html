@@ -1,0 +1,192 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - UACM</title>
+    <link rel="stylesheet" href="{% static 'css/reportes.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <img src="{% static 'media/logouacm.jpg' %}" alt="UACM Logo" class="logo">
+            <a href="{% url 'home' %}" class="home-button">
+                <img src="https://www.svgrepo.com/show/525383/home-1.svg" alt="Menú" class="home-icon">
+            </a>
+        </div>
+        <div class="user-profile" id="userProfile">
+            <span class="user-icon">👤</span>
+            <span class="user-name">{{ user.username }}</span>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="form-container">
+            <h1>Generar Reportes e Inventarios</h1>
+
+            <!-- Sección de Reportes de Solicitudes -->
+            <section class="reportes-section">
+                <h2>Reportes de Solicitudes</h2>
+                <form id="reporte-form">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <label for="fecha_inicio">Fecha de Inicio:</label>
+                        <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="fecha_fin">Fecha de Fin:</label>
+                        <input type="date" id="fecha_fin" name="fecha_fin" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="formato">Formato:</label>
+                        <select id="formato" name="formato">
+                            <option value="PDF">PDF</option>
+                            <option value="CSV">CSV</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Generar Reporte</button>
+                </form>
+
+                <!-- Sección para mostrar errores -->
+                <div id="mensaje-error" style="color: red; display: none;"></div>
+
+                <!-- Sección para mostrar resultados -->
+                <div id="resultados-container" style="display: none;">
+                    <h2>Resultados del Reporte</h2>
+                    <table id="resultados-tabla">
+                        <thead>
+                            <tr>
+                                <th>ID Solicitud</th>
+                                <th>Dirección Almacén</th>
+                                <th>Nombre Artículo</th>
+                                <th>Cantidad</th>
+                                <th>Nombre Persona</th>
+                                <th>Fecha Solicitud</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Aquí se llenarán los resultados con AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Sección de Inventarios -->
+            <section class="inventarios-section">
+                <h2>Inventario de Artículos</h2>
+                <button id="mostrar-inventario" class="submit-btn">Ver Inventario</button>
+
+                <!-- Sección para mostrar resultados de inventario -->
+                <div id="inventario-container" style="display: none;">
+                    <h2>Inventario Completo</h2>
+                    <table id="inventario-tabla">
+                        <thead>
+                            <tr>
+                                <th>Nombre Artículo</th>
+                                <th>Descripción Artículo</th>
+                                <th>Cantidad</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Aquí se llenarán los resultados con AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>"NADA HUMANO ME ES AJENO"</p>
+    </footer>
+
+    <script>
+        $(document).ready(function() {
+            // Manejo del formulario para generar reportes
+            $("#reporte-form").submit(function(event) {
+                event.preventDefault(); // Evita la recarga de la página
+
+                var formData = {
+                    "fecha_inicio": $("#fecha_inicio").val(),
+                    "fecha_fin": $("#fecha_fin").val(),
+                    "formato": $("#formato").val(),
+                    "csrfmiddlewaretoken": $("input[name='csrfmiddlewaretoken']").val()
+                };
+
+                $.ajax({
+                    type: "POST",
+                    url: "{% url 'reporte_solicitudes' %}",
+                    data: formData,
+                    dataType: "json",
+                    success: function(response) {
+                        console.log("Respuesta AJAX:", response);
+                        $("#mensaje-error").hide();
+                        $("#resultados-container").show();
+                        var tbody = $("#resultados-tabla tbody");
+                        tbody.empty();
+
+                        if (response.productos && response.productos.length > 0) {
+                            $.each(response.productos, function(index, item) {
+                                var row = `<tr>
+                                    <td>${item.id_solicitud}</td>
+                                    <td>${item.almacen_direccion}</td>
+                                    <td>${item.nom_articulo}</td>
+                                    <td>${item.cantidad}</td>
+                                    <td>${item.nombre_persona}</td>
+                                    <td>${item.fecha_sol}</td>
+                                </tr>`;
+                                tbody.append(row);
+                            });
+                        } else {
+                            tbody.append("<tr><td colspan='6'>No hay datos disponibles</td></tr>");
+                        }
+                    },
+                    error: function(xhr) {
+                        console.log("Error AJAX:", xhr.responseText);
+                        $("#resultados-container").hide();
+                        $("#mensaje-error").text(xhr.responseJSON.error).show();
+                    }
+                });
+            });
+
+            // Manejo de la solicitud AJAX para inventario
+            $("#mostrar-inventario").click(function() {
+                $.ajax({
+                    type: "GET",
+                    url: "{% url 'inventario' %}",
+                    success: function(response) {
+                        console.log("Respuesta AJAX de Inventario:", response);
+                        $("#inventario-container").show();
+                        var tbody = $("#inventario-tabla tbody");
+                        tbody.empty();
+
+                        if (response.articulos && response.articulos.length > 0) {
+                            $.each(response.articulos, function(index, item) {
+                                var row = `<tr>
+                                    <td>${item.nom_articulo}</td>
+                                    <td>${item.desc_articulo}</td>
+                                    <td>${item.cantidad}</td>
+                                    <td>${item.nomb_estatus}</td>
+                                </tr>`;
+                                tbody.append(row);
+                            });
+                        } else {
+                            tbody.append("<tr><td colspan='4'>No hay datos disponibles</td></tr>");
+                        }
+                    },
+                    error: function(xhr) {
+                        console.log("Error AJAX:", xhr.responseText);
+                        $("#inventario-container").hide();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
