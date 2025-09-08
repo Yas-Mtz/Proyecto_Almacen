@@ -6,4 +6,6 @@ urlpatterns = [
     # Cambio logout a logout_view
     path('logout/', views.logout, name='logout'),
 
+
+
 ]
