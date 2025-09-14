@@ -17,46 +17,36 @@
             <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
         </div>
 
-        <form method="POST" action="{% url 'login' %}">
+        <form method="POST" action="{% url 'login' %}" id="loginForm">
             {% csrf_token %}
             
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
             <div class="form-group">
                 <label for="username"><i class="fas fa-user"></i> Usuario</label>
                 <div class="sec-2">
-                    <ion-icon name="mail-outline"></ion-icon>
-                    <input type="text" name="username" id="username" placeholder="Ingresa tu usuario" autocomplete="username">
+                    <input type="text" name="username" id="username" placeholder="Ingresa tu usuario" autocomplete="username" required>
                 </div>
             </div>
 
             <div class="form-group password-input">
                 <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
                 <div class="sec-2">
-                    <input class="pas" type="password" name="password" id="password" placeholder="············" autocomplete="current-password">
+                    <input class="pas" type="password" name="password" id="password" placeholder="············" autocomplete="current-password" required>
                     <button type="button" class="toggle-password" aria-label="Mostrar u ocultar contraseña">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
             </div>
 
-            <button type="submit" class="login">Ingresar</button>
+            <button type="submit" class="login" id="loginBtn">
+                <span class="btn-text">Ingresar</span>
+                <i class="fas fa-spinner fa-spin loading-spinner" style="display: none;"></i>
+            </button>
         </form>
     </div>
-
-    {% if messages %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        {% for message in messages %}
-        Swal.fire({
-            icon: '{% if message.tags == "error" %}error{% elif message.tags == "warning" %}warning{% elif message.tags == "success" %}success{% else %}info{% endif %}',
-            title: '{{ message|escapejs }}',
-            confirmButtonText: 'Aceptar',
-            timer: 4000,
-            timerProgressBar: true
-        });
-        {% endfor %}
-    });
-    </script>
-    {% endif %}
 
     <script>
         // Mostrar / Ocultar contraseña

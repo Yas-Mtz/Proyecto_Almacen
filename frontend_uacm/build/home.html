@@ -7,19 +7,30 @@
     <title>Sistema de Inventario</title>
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'js/home.js' %}"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
 </head>
 <body>
     <header>
         <div class="logo">
-            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM">
+            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
         </div>
         <h1>SISTEMA DE INVENTARIO</h1>
         <div class="user-profile" id="userProfile">
             <span class="user-icon">👤</span>
             <span class="user-name">{{ user.username }}</span>
+            <!-- Indicador de estado de sesión -->
+            <span class="session-status" id="sessionStatus" title="Estado de sesión">
+                <i class="fas fa-circle"></i>
+            </span>
             <div class="dropdown-menu" id="dropdownMenu">
-                <a href="{% url 'logout' %}">Cerrar sesión</a>
+                <a href="#" onclick="showSessionInfo()" class="dropdown-item">
+                    <i class="fas fa-info-circle"></i> Estado de Sesión
+                </a>
+                <a href="{% url 'logout' %}" class="dropdown-item">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                </a>
             </div>
         </div>   
     </header>
@@ -44,11 +55,22 @@
             <div class="card">
                 <div class="icon">🛒</div>
                 <h2>SOLICITUD DE ARTÍCULOS</h2>
-                <p>Elabora las solicitudes de productos.</p></br><br>
+                <p>Elabora las solicitudes de productos.</p><br><br>
                 <a href="{% url 'solicitud' %}" class="arrow green">→</a>
             </div>
         </section>
     </main>
+
+    <!-- Modal de información de sesión -->
+    <div id="sessionModal" class="session-modal" style="display: none;">
+        <div class="session-modal-content">
+            <span class="session-close">&times;</span>
+            <h3><i class="fas fa-info-circle"></i> Información de Sesión</h3>
+            <div id="sessionInfo">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+    </div>
 
     <footer>
         <p>"NADA HUMANO ME ES AJENO"</p>

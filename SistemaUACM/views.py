@@ -4,6 +4,6 @@ from django.contrib.auth.decorators import login_required
 # Vistade login
 
 
-# @login_required
+@login_required(login_url='login')
 def home(request):
     return render(request, 'home.html', {'usuario': request.user.username})

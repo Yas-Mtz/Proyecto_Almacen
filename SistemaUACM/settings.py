@@ -139,7 +139,8 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 # Tiempo en segundos que la sesión será válida (1 hora)
 SESSION_COOKIE_AGE = 1800 # segundos
 # Cierra la sesión cuando se cierre el navegador
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR)  # ahora MEDIA_ROOT apunta al proyecto completo
