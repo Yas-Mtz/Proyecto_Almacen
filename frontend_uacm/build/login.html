@@ -6,12 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UACM Login</title>
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <div class="login-container">
-        <h2 class="welcome-message">¡Bienvenido al sistema!</h2>
+        <h2 class="welcome-message">¡Bienvenido!</h2>
+        <p class="subtitle">Accede a tu cuenta UACM</p>
 
         <div class="logo">
             <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
@@ -25,16 +26,34 @@
             {% endif %}
 
             <div class="form-group">
-                <label for="username"><i class="fas fa-user"></i> Usuario</label>
+                <label for="username">
+                    <i class="fas fa-user"></i>
+                    Usuario
+                </label>
                 <div class="sec-2">
-                    <input type="text" name="username" id="username" placeholder="Ingresa tu usuario" autocomplete="username" required>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        id="username" 
+                        placeholder="Ingresa tu usuario" 
+                        autocomplete="username" 
+                        required>
                 </div>
             </div>
 
-            <div class="form-group password-input">
-                <label for="password"><i class="fas fa-lock"></i> Contraseña</label>
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i>
+                    Contraseña
+                </label>
                 <div class="sec-2">
-                    <input class="pas" type="password" name="password" id="password" placeholder="············" autocomplete="current-password" required>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        id="password" 
+                        placeholder="············" 
+                        autocomplete="current-password" 
+                        required>
                     <button type="button" class="toggle-password" aria-label="Mostrar u ocultar contraseña">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -42,26 +61,25 @@
             </div>
 
             <button type="submit" class="login" id="loginBtn">
-                <span class="btn-text">Ingresar</span>
+                <span class="btn-text">Ingresar al Sistema</span>
                 <i class="fas fa-spinner fa-spin loading-spinner" style="display: none;"></i>
             </button>
         </form>
+
+        <div class="login-footer">
+            <p>Sistema de Gestión UACM © 2024</p>
+        </div>
     </div>
 
-    <script>
-        // Mostrar / Ocultar contraseña
-        document.querySelectorAll('.toggle-password').forEach(button => {
-            button.addEventListener('click', function () {
-                let passwordInput = this.previousElementSibling;
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    this.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                } else {
-                    passwordInput.type = 'password';
-                    this.innerHTML = '<i class="fas fa-eye"></i>';
-                }
-            });
-        });
-    </script>
+    <!-- Mensajes de Django (ocultos) -->
+    <div id="django-messages" style="display: none;">
+        {% if messages %}
+            {% for message in messages %}
+                <div data-type="{{ message.tags }}" data-text="{{ message|escapejs }}"></div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <script src="{% static 'js/login.js' %}"></script>
 </body>
 </html>
