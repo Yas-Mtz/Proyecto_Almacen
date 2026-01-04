@@ -4,76 +4,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inventario</title>
-    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+    <title>Sistema de Inventario - UACM</title>
+    <link rel="stylesheet" href="{% static 'css/home2.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{% static 'js/home.js' %}"></script>  
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
 </head>
 <body>
+    <!-- Header con diseño unificado -->
     <header>
-        <div class="logo">
-            <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="circular-logo">
-        </div>
-        <h1>SISTEMA DE INVENTARIO</h1>
-        <div class="user-profile" id="userProfile">
-            <span class="user-icon">👤</span>
-            <span class="user-name">{{ user.username }}</span>
-            <!-- Indicador de estado de sesión -->
-            <span class="session-status" id="sessionStatus" title="Estado de sesión">
-                <i class="fas fa-circle"></i>
-            </span>
-            <div class="dropdown-menu" id="dropdownMenu">
-                <a href="#" onclick="showSessionInfo()" class="dropdown-item">
-                    <i class="fas fa-info-circle"></i> Estado de Sesión
-                </a>
-                <a href="{% url 'logout' %}" class="dropdown-item">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
-                </a>
+        <div class="header-content">
+            <div class="logo-section">
+                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="header-logo">
+                <div class="header-title">
+                    <h1>Sistema de Inventario</h1>
+                    <p class="header-subtitle">Universidad Autónoma de la Ciudad de México</p>
+                </div>
             </div>
-        </div>   
+            
+            <div class="user-profile" id="userProfile">
+                <div class="user-info">
+                    <span class="user-name">{{ user.username }}</span>
+                    <span class="user-role">Gerente</span>
+                </div>
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <span class="session-status" id="sessionStatus" title="Sesión activa">
+                    <i class="fas fa-circle"></i>
+                </span>
+                
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="#" onclick="showSessionInfo(); return false;" class="dropdown-item">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Estado de Sesión</span>
+                    </a>
+                    <a href="{% url 'logout' %}" class="dropdown-item logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Cerrar Sesión</span>
+                    </a>
+                </div>
+            </div>
+        </div>
     </header>
 
+    <!-- Contenido principal -->
     <main>
-        <div class="welcome-box">
-            <p>Bienvenido <span class="user-name">{{ user.username }}</span></p>
+        <div class="container">
+            <!-- Mensaje de bienvenida -->
+            <div class="welcome-section">
+                <h2 class="welcome-title">¡Bienvenido de nuevo!</h2>
+                <p class="welcome-text">
+                    Hola <strong>{{ user.username }}</strong>, gestiona el inventario desde aquí
+                </p>
+            </div>
+
+            <!-- Cards de opciones -->
+            <div class="cards-grid">
+                <!-- Card 1: Gestión de Productos -->
+                <div class="option-card" style="--card-index: 0;">
+                    <div class="card-icon blue">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <h3 class="card-title">Gestión de Productos</h3>
+                    <p class="card-description">
+                        Administra los productos del almacén con registro, actualización y control de disponibilidad.
+                    </p>
+                    <a href="{% url 'gestiondeproductos' %}" class="card-button blue">
+                        <span>Acceder</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <!-- Card 2: Reportes e Inventario -->
+                <div class="option-card" style="--card-index: 1;">
+                    <div class="card-icon orange">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="card-title">Reportes e Inventario</h3>
+                    <p class="card-description">
+                        Genera reportes de solicitudes e inventarios por fecha para un mayor control del almacén.
+                    </p>
+                    <a href="{% url 'reportes' %}" class="card-button orange">
+                        <span>Acceder</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <!-- Card 3: Solicitud de Artículos -->
+                <div class="option-card" style="--card-index: 2;">
+                    <div class="card-icon green">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <h3 class="card-title">Solicitud de Artículos</h3>
+                    <p class="card-description">
+                        Elabora y gestiona las solicitudes de productos para el almacén de manera eficiente.
+                    </p>
+                    <a href="{% url 'solicitud' %}" class="card-button green">
+                        <span>Acceder</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
         </div>
-        <section class="options">
-            <div class="card">
-                <div class="icon">📦</div>
-                <h2>GESTIÓN DE PRODUCTOS</h2>
-                <p>Administra los productos del almacén con registro, actualización y control de disponibilidad.</p>
-                <a href="{% url 'gestiondeproductos' %}" class="arrow blue">→</a>
-            </div>
-            <div class="card">
-                <div class="icon">⏰</div>
-                <h2>REPORTES E INVENTARIO</h2>
-                <p>Genera reportes de solicitudes e inventarios por fecha para un mayor control del almacén.</p>
-                <a href="{% url 'reportes' %}" class="arrow orange">→</a>
-            </div>
-            <div class="card">
-                <div class="icon">🛒</div>
-                <h2>SOLICITUD DE ARTÍCULOS</h2>
-                <p>Elabora las solicitudes de productos.</p><br><br>
-                <a href="{% url 'solicitud' %}" class="arrow green">→</a>
-            </div>
-        </section>
     </main>
 
     <!-- Modal de información de sesión -->
-    <div id="sessionModal" class="session-modal" style="display: none;">
-        <div class="session-modal-content">
-            <span class="session-close">&times;</span>
-            <h3><i class="fas fa-info-circle"></i> Información de Sesión</h3>
-            <div id="sessionInfo">
-                <!-- Se llenará dinámicamente -->
+    <div id="sessionModal" class="session-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <i class="fas fa-info-circle"></i>
+                <h3>Información de Sesión</h3>
+            </div>
+            <div class="modal-body" id="sessionInfo">
+                <!-- Contenido dinámico -->
             </div>
         </div>
     </div>
 
+    <!-- Footer -->
     <footer>
-        <p>"NADA HUMANO ME ES AJENO"</p>
+        <p>"Nada Humano Me Es Ajeno"</p>
+        <p class="footer-copy">Sistema de Gestión UACM © 2024</p>
     </footer>
+
+    <script src="{% static 'js/home.js' %}"></script>
 </body>
 </html>
