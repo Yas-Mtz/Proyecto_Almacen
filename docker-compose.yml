@@ -1,39 +1,46 @@
+version: "3.9"
+
 services:
   web:
-    build: .  
-    container_name: sistema_uacm_web  # contenedor de vista/controlador
-    command: ["./wait-for-it.sh", "db:3306", "--timeout=30", "--", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+    build: .
+    container_name: sistema_uacm_web
+    command: >
+      bash -c "
+      ./wait-for-it.sh db:3306 --timeout=120 --strict -- &&
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000
+      "
     volumes:
-      - .:/app  #código en el contenedor
-      - ./frontend_uacm/build:/app/frontend_uacm/build  # carpeta build de React
-      - ./staticfiles:/app/staticfiles  
+      - .:/app
+      - ./frontend_uacm/build:/app/frontend_uacm/build
+      - ./staticfiles:/app/staticfiles
     ports:
-      - "8000:8000"  # puerto de Django
+      - "8000:8000"
     env_file:
-      - .env  # Conexión de la base de datos
+      - .env
     depends_on:
-      - db  
+      - db
     networks:
-      - default  
+      - default
 
   db:
-    image: mysql:8.0  # Usar la imagen oficial de MySQL
-    container_name: sistema_uacm_db  # contenedor de bd (Mysql)
+    image: mysql:8.0
+    container_name: sistema_uacm_db
     environment:
-      MYSQL_ROOT_PASSWORD: root  
-      MYSQL_DATABASE: uacm_db  
-      MYSQL_PASSWORD: root  
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: uacm_db
+      MYSQL_PASSWORD: root
     volumes:
-      - db_data:/var/lib/mysql  
+      - db_data:/var/lib/mysql
     ports:
-      - "3307:3306"  # puerto 3307 en máquina local 
+      - "3307:3306"
     networks:
-      - default 
+      - default
 
 volumes:
-  db_data:  
-  staticfiles:  
+  db_data:
+  staticfiles:
 
 networks:
   default:
-    driver: bridge  # Usar red bridge para la comunicación entre contenedores
+    driver: bridge

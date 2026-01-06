@@ -1,0 +1,307 @@
+/* =======================
+   VARIABLES DEL SISTEMA
+======================= */
+:root {
+    --primary: #640404;
+    --primary-hover: #8b0606;
+    --success: #28a745;
+    --info: #17a2b8;
+    --danger: #dc3545;
+    --bg: #f8f9fb;
+    --border: #e5e7eb;
+    --text: #1a1a1a;
+}
+
+/* =======================
+   RESET
+======================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* =======================
+   BODY
+======================= */
+body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1a0a0a, #360000, #1a0a0a);
+    min-height: 100vh;
+    color: var(--text);
+}
+
+/* =======================
+   HEADER (IGUAL A GESTIÓN)
+======================= */
+.header {
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+}
+
+.header-inner {
+    max-width: 1400px;
+    margin: auto;
+    padding: 1.2rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 3px solid var(--primary);
+}
+
+.home-button {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(100,4,4,.08);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-titles h1 {
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.header-titles span {
+    font-size: .85rem;
+    color: #666;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    background: #f3f3f3;
+    padding: .5rem .9rem;
+    border-radius: 999px;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* =======================
+   MAIN
+======================= */
+.main-content {
+    max-width: 1400px;
+    margin: auto;
+    padding: 2.5rem;
+}
+
+/* =======================
+   PAGE HEADER
+======================= */
+.page-header {
+    background: white;
+    padding: 2rem;
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.15);
+    margin-bottom: 2.5rem;
+}
+
+.page-header h2 {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+/* =======================
+   CARDS
+======================= */
+.card {
+    background: white;
+    border-radius: 28px;
+    padding: 2.5rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    margin-bottom: 2.5rem;
+}
+
+.card h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+    border-left: 6px solid var(--primary);
+    padding-left: 1rem;
+}
+
+/* =======================
+   FORMULARIO
+======================= */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+}
+
+input, select, textarea {
+    padding: .85rem 1rem;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+}
+
+/* =======================
+   PRODUCTOS
+======================= */
+.product-box {
+    background: var(--bg);
+    padding: 2rem;
+    border-radius: 20px;
+    margin-top: 1rem;
+}
+
+table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: .9rem;
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    background: #f1f1f1;
+}
+
+/* =======================
+   BOTONES
+======================= */
+.btn {
+    border-radius: 14px;
+    padding: .8rem 1.6rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-add {
+    background: var(--success);
+    color: white;
+    align-self: end;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(0,0,0,.25);
+}
+
+
+/* ===============================
+   HEADER DE PRODUCTOS (MINIMAL)
+================================ */
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+/* ===============================
+   EXPORTAR (SIN ROMPER UI)
+================================ */
+.export-wrapper {
+    position: relative;
+}
+
+.btn-export {
+    background: var(--info);
+    color: white;
+    padding: .5rem 1.2rem;
+    border-radius: 10px;
+    font-size: .9rem;
+}
+
+.export-options {
+    position: absolute;
+    right: 0;
+    top: 110%;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    width: 160px;
+    display: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,.15);
+    z-index: 20;
+}
+
+.export-options label {
+    display: block;
+    font-size: .9rem;
+    margin-bottom: .4rem;
+    cursor: pointer;
+}
+
+.btn-confirm-export {
+    margin-top: .6rem;
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    padding: .4rem;
+}
+
+/* Mostrar opciones */
+.export-wrapper.active .export-options {
+    display: block;
+}
+
+
+
+/* =======================
+   STATUS
+======================= */
+.status-badge {
+    padding: .35rem 1rem;
+    border-radius: 999px;
+    background: var(--info);
+    color: white;
+    display: inline-block;
+}
+
+/* =======================
+   FOOTER
+======================= */
+.footer {
+    text-align: center;
+    padding: 2rem;
+    background: white;
+}
+
+
