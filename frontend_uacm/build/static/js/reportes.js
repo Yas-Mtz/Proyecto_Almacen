@@ -1,123 +1,129 @@
 $(document).ready(function () {
-    // Evento para el botón de generar reporte
-    $('#btn_generar_reporte').on('click', function() {
-        const fechaInicio = $('#fecha_inicio').val();
-        const fechaFin = $('#fecha_fin').val();
 
-        // Validar fechas antes de hacer la llamada AJAX
-        if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+    /* ===============================
+       REPORTE DE SOLICITUDES
+    =============================== */
+    $("#reporte-form").on("submit", function (e) {
+        e.preventDefault();
+
+        const fechaInicio = $("#fecha_inicio").val();
+        const fechaFin = $("#fecha_fin").val();
+        const formato = $("#formato").val();
+        const csrfToken = $("input[name='csrfmiddlewaretoken']").val();
+
+        // Validación UX
+        if (!fechaInicio || !fechaFin) {
+            alert("Selecciona ambas fechas.");
+            return;
+        }
+
+        if (fechaInicio > fechaFin) {
             alert("La fecha de inicio no puede ser mayor que la fecha de fin.");
             return;
         }
 
-        // Llamada AJAX para obtener los reportes según las fechas seleccionadas
         $.ajax({
-            type: 'GET',
-            url: `/ruta/a/tu/api/reporte?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`,
-            success: function(data) {
-                const tablaReportes = $('#tabla_reportes tbody');
-                tablaReportes.empty(); // Limpiar tabla antes de llenarla
-
-                data.forEach(function(item) {
-                    const fila = `<tr><td>${item.producto}</td><td>${item.fecha}</td><td>${item.cantidad}</td><td>${item.precio}</td></tr>`;
-                    tablaReportes.append(fila);
-                });
+            type: "POST",
+            url: "/Reportes/generar-reporte/",
+            data: {
+                fecha_inicio: fechaInicio,
+                fecha_fin: fechaFin,
+                formato: formato,
+                csrfmiddlewaretoken: csrfToken
             },
-            error: function(error) {
-                console.error("Error en la solicitud AJAX:", error);
+            success: function (response) {
+                console.log("Reporte:", response);
+
+                // 1️⃣ Si el backend devuelve archivo
+                if (response.url) {
+                    descargarArchivo(response.url, "reporte");
+                    return;
+                }
+
+                // 2️⃣ Si devuelve datos para tabla
+                if (response.productos || response.datos) {
+                    mostrarTablaReportes(response.productos || response.datos);
+                    return;
+                }
+
+                alert("No se encontraron resultados.");
+            },
+            error: function (xhr) {
+                console.error(xhr.responseText);
                 alert("Error al generar el reporte.");
             }
         });
     });
 
-    // Evento para el botón de generar inventario
-    $('#btn_generar_inventario').on('click', function() {
-        const categoria = $('#categoria').val();
-        const estado = $('#estado').val();
+    /* ===============================
+       INVENTARIO GENERAL
+    =============================== */
+    $("#mostrar-inventario").on("click", function () {
 
-        // Llamada AJAX para obtener el inventario según los filtros seleccionados
         $.ajax({
-            type: 'GET',
-            url: `/ruta/a/tu/api/inventario?categoria=${categoria}&estado=${estado}`,
-            success: function(data) {
-                const tablaInventario = $('#tabla_inventario tbody');
-                tablaInventario.empty(); // Limpiar tabla antes de llenarla
+            type: "GET",
+            url: "/Reportes/inventario/",
+            success: function (response) {
+                console.log("Inventario:", response);
 
-                data.forEach(function(item) {
-                    const fila = `<tr><td>${item.producto}</td><td>${item.categoria}</td><td>${item.cantidad}</td><td>${item.estado}</td></tr>`;
-                    tablaInventario.append(fila);
+                if (!response.articulos || response.articulos.length === 0) {
+                    alert("No hay artículos en inventario.");
+                    return;
+                }
+
+                $("#inventario-container").show();
+                const tbody = $("#inventario-tabla");
+                tbody.empty();
+
+                response.articulos.forEach(item => {
+                    tbody.append(`
+                        <tr>
+                            <td>${item.nom_articulo}</td>
+                            <td>${item.desc_articulo}</td>
+                            <td>${item.cantidad}</td>
+                            <td>${item.nomb_estatus}</td>
+                        </tr>
+                    `);
                 });
             },
-            error: function(error) {
-                console.error("Error en la solicitud AJAX:", error);
-                alert("Error al generar el inventario.");
+            error: function (xhr) {
+                console.error(xhr.responseText);
+                alert("Error al cargar el inventario.");
             }
         });
     });
 
-    // Evento para el formulario de generar reporte (envío con jQuery)
-    $("#reporte-form").submit(function (event) {
-        event.preventDefault();  // Previene el comportamiento por defecto del formulario
-
-        // Obtención de valores de los campos
-        let fecha_inicio = $("#fecha_inicio").val();
-        let fecha_fin = $("#fecha_fin").val();
-        let formato = $("#formato").val();
-        let csrf_token = $('input[name="csrfmiddlewaretoken"]').val();  // CSRF Token para la seguridad en el backend
-
-        // Validar fechas antes de enviarlas
-        if (fecha_inicio && fecha_fin && fecha_inicio > fecha_fin) {
-            alert("La fecha de inicio no puede ser mayor que la fecha de fin.");
-            return;
-        }
-
-        // Realiza la solicitud AJAX al servidor
-        $.ajax({
-            type: "POST",
-            url: "/Reportes/generar-reporte/",
-            data: {
-                "fecha_inicio": fecha_inicio,
-                "fecha_fin": fecha_fin,
-                "formato": formato,
-                "csrfmiddlewaretoken": csrf_token
-            },
-            success: function (response) {
-                console.log("Respuesta del servidor:", response);
-
-                if (response.mensaje) {
-                    alert(response.mensaje);
-                } else if (response.url) {
-                    var link = document.createElement('a');
-                    link.href = response.url;
-                    link.download = "reporte";
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } else if (response.datos) {
-                    let tbody = $("#resultados-tabla tbody");
-                    tbody.empty();
-
-                    response.datos.forEach(function (item) {
-                        let fila = "<tr>";
-                        fila += "<td>" + item.nom_articulo + "</td>";
-                        fila += "<td>" + item.desc_articulo + "</td>";
-                        fila += "<td>" + item.cantidad + "</td>";
-                        if (item.qr_articulo) {
-                            fila += "<td><img src='/" + item.qr_articulo + "' alt='QR Articulo' width='50'></td>";
-                        } else {
-                            fila += "<td>Sin imagen</td>";
-                        }
-                        fila += "</tr>";
-                        tbody.append(fila);
-                    });
-                } else {
-                    alert("No se encontraron datos para el reporte.");
-                }
-            },
-            error: function (error) {
-                console.error("Error en la solicitud AJAX:", error);
-                alert("Error al generar el reporte: " + (error.responseText || error.statusText));
-            }
-        });
-    });
 });
+
+
+/* ===============================
+   FUNCIONES AUXILIARES
+=============================== */
+
+function mostrarTablaReportes(datos) {
+    $("#resultados-container").show();
+    const tbody = $("#resultados-tabla");
+    tbody.empty();
+
+    datos.forEach(item => {
+        tbody.append(`
+            <tr>
+                <td>${item.id_solicitud || "-"}</td>
+                <td>${item.almacen_direccion || "-"}</td>
+                <td>${item.nom_articulo || "-"}</td>
+                <td>${item.cantidad || "-"}</td>
+                <td>${item.nombre_persona || "-"}</td>
+                <td>${item.fecha_sol || "-"}</td>
+            </tr>
+        `);
+    });
+}
+
+function descargarArchivo(url, nombre) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nombre;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
