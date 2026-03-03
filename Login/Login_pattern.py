@@ -37,8 +37,9 @@ class ProxyAutenticacion:
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '').strip()
 
+        # Validación de campos vacíos — responsabilidad del Modelo
         if not username or not password:
-            return False
+            return False, 'Por favor, complete todos los campos.'
 
         with self._lock:
             self._limpiar_sesiones_inactivas()
@@ -50,12 +51,14 @@ class ProxyAutenticacion:
                         session_key=session_data['session_key'],
                         expire_date__gte=now()
                     )
-                    return False  # Bloquear múltiples sesiones
+                    logger.warning(f"Intento de sesión múltiple para {username}")
+                    return False, 'Ya existe una sesión activa con este usuario.'
                 except Session.DoesNotExist:
                     del self._sesiones_activas[username]
 
             if not self._autenticacion_real.autenticar(request):
-                return False
+                logger.warning(f"Intento fallido de login para {username}")
+                return False, 'Usuario o contraseña incorrectos.'
 
             if not request.session.session_key:
                 request.session.save()
@@ -64,7 +67,8 @@ class ProxyAutenticacion:
                 'session_key': request.session.session_key,
                 'last_activity': now()
             }
-            return True
+            logger.info(f"Login exitoso para {username}")
+            return True, None
 
     def actualizar_ultima_actividad(self, username):
         with self._lock:

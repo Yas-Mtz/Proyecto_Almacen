@@ -23,3 +23,4 @@ EXPOSE 8000
 
 # Comando por defecto para ejecutar la aplicación Django (espera primero la base de datos)
 CMD ["/app/wait-for-it.sh", "db:3306", "--", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+

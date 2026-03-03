@@ -5,11 +5,7 @@ services:
     build: .
     container_name: sistema_uacm_web
     command: >
-      bash -c "
-      ./wait-for-it.sh db:3306 --timeout=120 --strict -- &&
-      python manage.py migrate &&
-      python manage.py runserver 0.0.0.0:8000
-      "
+      bash -c " ./wait-for-it.sh db:3306 --timeout=120 --strict -- && python manage.py migrate && python manage.py runserver 0.0.0.0:8000 "
     volumes:
       - .:/app
       - ./frontend_uacm/build:/app/frontend_uacm/build
@@ -40,6 +36,7 @@ services:
 volumes:
   db_data:
   staticfiles:
+
 
 networks:
   default:
