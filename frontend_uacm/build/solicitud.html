@@ -6,239 +6,225 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solicitud de Artículos - UACM</title>
     <link rel="icon" href="data:,">
-
-    <!-- ICONOS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- CSS -->
     <link rel="stylesheet" href="{% static 'css/solicitud.css' %}">
-
-    <!-- JS -->
     <script src="{% static 'js/solicitud1.js' %}" defer></script>
 </head>
 <body>
 
-<!-- =======================
-     HEADER UNIFICADO
-======================= -->
 <header class="header">
     <div class="header-inner">
-
         <div class="header-left">
             <img src="{% static 'media/logouacm.jpg' %}" class="header-logo" alt="UACM">
-
             <a href="{% url 'home' %}" class="home-button">
                 <i class="fas fa-home"></i>
             </a>
-
             <div class="header-titles">
                 <h1>Solicitud de Artículos</h1>
                 <p>Registro, consulta y control de solicitudes</p>
             </div>
         </div>
-
         <div class="header-user">
             <span class="username">{{ user.username }}</span>
-            <div class="avatar">
-                <i class="fas fa-user"></i>
-            </div>
+            <div class="avatar"><i class="fas fa-user"></i></div>
         </div>
-
     </div>
 </header>
 
-<!-- =======================
-     CONTENIDO
-======================= -->
 <main class="main-content">
 <div class="content-wrapper">
 
-<!-- =======================
-     BUSCAR SOLICITUD
-======================= -->
-<section class="card">
-    <h3>Buscar solicitud</h3>
-
-    <div class="form-grid">
-        <div class="form-group">
-            <label>ID de la solicitud</label>
-            <input type="number" id="buscar-id-solicitud" placeholder="Ej. 1024">
-        </div>
-
-        <div class="form-actions">
-            <button type="button" class="btn btn-primary" id="btn-buscar-solicitud">
-                <i class="fas fa-search"></i> Buscar
-            </button>
-        </div>
-    </div>
-</section>
-
-<!-- =======================
-     NUEVA SOLICITUD
-     (VISIBLE SOLO EN MODO CREACIÓN)
-======================= -->
-<section class="card" id="nueva-solicitud-container">
-    <h3>Nueva solicitud</h3>
-
-    <form id="form-solicitud" data-url="{% url 'crear_solicitud' %}">
-
+    <!-- BUSCAR SOLICITUD -->
+    <section class="card">
+        <h3><i class="fas fa-search"></i> Buscar Solicitud</h3>
         <div class="form-grid">
             <div class="form-group">
-                <label>Matrícula</label>
-                <input type="text" id="matricula">
+                <label>ID de la solicitud</label>
+                <input type="number" id="buscar-id-solicitud" placeholder="Ej. 1024">
             </div>
-
-            <div class="form-group">
-                <label>Nombre</label>
-                <input type="text" id="nombre">
-            </div>
-
-            <div class="form-group">
-                <label>Cargo</label>
-                <select id="id_rol">
-                    <option value="">Seleccione</option>
-                    {% for rol in roles %}
-                        <option value="{{ rol.id_rol }}">{{ rol.nombre_rol }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Almacén destino</label>
-                <select id="almacen">
-                    <option value="">Seleccione</option>
-                    {% for almacen in almacenes %}
-                        <option value="{{ almacen.id_almacen }}">
-                            {{ almacen.id_talmacen.tipo_almacen }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Fecha</label>
-                <input type="text" value="{% now 'Y-m-d H:i' %}" readonly>
+            <div class="form-actions-inline">
+                <button type="button" class="btn btn-primary" id="btn-buscar-solicitud">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
             </div>
         </div>
+    </section>
 
-        <!-- PRODUCTOS -->
-        <h3>Productos solicitados</h3>
+    <!-- NUEVA SOLICITUD -->
+    <section class="card" id="nueva-solicitud-container">
+        <h3><i class="fas fa-file-alt"></i> Nueva Solicitud</h3>
 
-        <div class="product-box">
+        <form id="form-solicitud" data-url="{% url 'crear_solicitud' %}">
+
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Producto</label>
-                    <select id="producto">
-                        <option value="">Seleccione</option>
-                        {% for producto in productos %}
-                            <option value="{{ producto.id_producto }}">
-                                {{ producto.nombre_producto }} ({{ producto.cantidad }})
+                    <label><i class="fas fa-id-card"></i> Matrícula</label>
+                    <input type="text" id="matricula" placeholder="Ej. 2024001">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Nombre</label>
+                    <input type="text" id="nombre" placeholder="Nombre completo">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-briefcase"></i> Cargo</label>
+                    <select id="id_rol">
+                        <option value="">Seleccione un cargo</option>
+                        {% for rol in roles %}
+                            <option value="{{ rol.id_rol }}">{{ rol.nombre_rol }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-warehouse"></i> Almacén destino</label>
+                    <select id="almacen">
+                        <option value="">Seleccione un almacén</option>
+                        {% for almacen in almacenes %}
+                            <option value="{{ almacen.id_almacen }}">
+                                {{ almacen.id_talmacen.tipo_almacen }}
                             </option>
                         {% endfor %}
                     </select>
                 </div>
-
                 <div class="form-group">
-                    <label>Cantidad</label>
-                    <input type="number" id="cantidad" min="1" value="1">
+                    <label><i class="fas fa-calendar-alt"></i> Fecha</label>
+                    <input type="text" value="{% now 'Y-m-d H:i' %}" readonly>
+                </div>
+            </div>
+
+            <!-- Productos -->
+            <h4 class="subsection-title">
+                <i class="fas fa-boxes"></i> Productos Solicitados
+            </h4>
+
+            <div class="product-box">
+                <div class="form-grid product-selector">
+                    <div class="form-group">
+                        <label><i class="fas fa-box"></i> Producto</label>
+                        <select id="producto">
+                            <option value="">Seleccione un producto</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.id_producto }}">
+                                    {{ producto.nombre_producto }} ({{ producto.cantidad }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-sort-numeric-up"></i> Cantidad</label>
+                        <input type="number" id="cantidad" min="1" value="1">
+                    </div>
+                    <div class="form-group form-group-btn">
+                        <button type="button" class="btn btn-add" id="btn-agregar">
+                            <i class="fas fa-plus"></i> Agregar
+                        </button>
+                    </div>
                 </div>
 
-                <button type="button" class="btn btn-add" id="btn-agregar">
-                    <i class="fas fa-plus"></i> Agregar
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-seleccionados"></tbody>
+                </table>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="form-group" style="margin-top:1.5rem">
+                <label><i class="fas fa-sticky-note"></i> Observaciones</label>
+                <textarea id="observaciones" rows="3"
+                          placeholder="Observaciones adicionales..."></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Enviar Solicitud
                 </button>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Producto</th>
-                        <th>Cantidad</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="productos-seleccionados"></tbody>
-            </table>
-        </div>
+        </form>
+    </section>
 
-        <div class="form-group">
-            <label>Observaciones</label>
-            <textarea id="observaciones" rows="3"></textarea>
-        </div>
+    <!-- DETALLE DE SOLICITUD -->
+    <section class="card" id="detalle-solicitud-container" style="display:none">
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-paper-plane"></i> Enviar solicitud
-            </button>
-        </div>
-
-    </form>
-</section>
-
-<!-- =======================
-     DETALLE DE SOLICITUD
-     (VISIBLE AL BUSCAR O CREAR)
-======================= -->
-<section class="card" id="detalle-solicitud-container" style="display:none">
-
-    <div class="products-header">
-        <h3>Detalle de la solicitud</h3>
-
-        <div class="export-wrapper">
-            <button type="button" class="btn-export">
-                <i class="fas fa-download"></i> Exportar
-            </button>
-
-            <div class="export-options">
-                <label><input type="radio" name="export-format" value="pdf" checked> PDF</label>
-                <label><input type="radio" name="export-format" value="csv"> CSV</label>
-                <label><input type="radio" name="export-format" value="doc"> DOC</label>
-
-                <button class="btn-confirm-export">Descargar</button>
+        <div class="products-header">
+            <h3><i class="fas fa-clipboard-check"></i> Detalle de la Solicitud</h3>
+            <div class="export-wrapper">
+                <button type="button" class="btn-export">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+                <div class="export-options">
+                    <label><input type="radio" name="export-format" value="pdf" checked> PDF</label>
+                    <label><input type="radio" name="export-format" value="csv"> CSV</label>
+                    <label><input type="radio" name="export-format" value="doc"> DOC</label>
+                    <button class="btn-confirm-export">
+                        <i class="fas fa-download"></i> Descargar
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="detail-grid">
-    <p><strong>ID:</strong> <span id="detalle-id-solicitud">---</span></p>
-    <p><strong>Matrícula:</strong> <span id="detalle-matricula">---</span></p>
-    <p><strong>Solicitante:</strong> <span id="detalle-solicitante">---</span></p>
-    <p><strong>Cargo:</strong> <span id="detalle-cargo">---</span></p>
-    <p><strong>Almacén:</strong> <span id="detalle-almacen">---</span></p>
-    <p><strong>Fecha:</strong> <span id="detalle-fecha">---</span></p>
-</div>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <span class="detail-label">ID Solicitud</span>
+                <span class="detail-value" id="detalle-id-solicitud">---</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Matrícula</span>
+                <span class="detail-value" id="detalle-matricula">---</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Solicitante</span>
+                <span class="detail-value" id="detalle-solicitante">---</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Cargo</span>
+                <span class="detail-value" id="detalle-cargo">---</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Almacén</span>
+                <span class="detail-value" id="detalle-almacen">---</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Fecha</span>
+                <span class="detail-value" id="detalle-fecha">---</span>
+            </div>
+        </div>
 
+        <h4 class="subsection-title" style="margin-top:1.5rem">
+            <i class="fas fa-boxes"></i> Productos de la Solicitud
+        </h4>
 
-    <!-- ✅ TABLA FALTANTE -->
-    <table class="detalle-table">
-        <thead>
-            <tr>
-                <th>ID Producto</th>
-                <th>Producto</th>
-                <th>Cantidad</th>
-            </tr>
-        </thead>
-        <tbody id="detalle-productos"></tbody>
-    </table>
+        <table class="detalle-table">
+            <thead>
+                <tr>
+                    <th>ID Producto</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                </tr>
+            </thead>
+            <tbody id="detalle-productos"></tbody>
+        </table>
 
-    <span class="status-badge status-solicitado" id="detalle-estatus">
-        Solicitado
-    </span>
+        <div class="detalle-footer">
+            <span class="status-badge status-solicitado" id="detalle-estatus">Solicitado</span>
+            <button class="btn btn-danger" id="btn-cancelar-solicitud">
+                <i class="fas fa-times-circle"></i> Cancelar Solicitud
+            </button>
+        </div>
 
-    <div class="form-actions">
-        <button class="btn btn-danger" id="btn-cancelar-solicitud">
-            <i class="fas fa-times-circle"></i> Cancelar solicitud
-        </button>
-    </div>
-
-</section>
-
+    </section>
 
 </div>
 </main>
 
 <footer class="footer">
-    <p>"Nada Humano Me Es Ajeno"</p>
+    <p>"NADA HUMANO ME ES AJENO"</p>
 </footer>
 
 </body>

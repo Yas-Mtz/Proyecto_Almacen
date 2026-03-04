@@ -3,7 +3,106 @@ $(document).ready(function () {
   let nuevaImagenSeleccionada = false;
   let cantidadActualBD = 0;
   let validacionTimeout = null;
-  let currentProductData = null; // Variable global para datos del producto
+  let currentProductData = null;
+  let alertaStockMostrada = false;
+  const nextId = $("#id_producto").val();
+
+  function actualizarModoIndicador(modo, idProducto, nombreProducto) {
+    const $indicator = $("#modo-indicator");
+    const $texto = $("#modo-text");
+    if (modo === "add") {
+      $indicator.removeClass("modo-edit").addClass("modo-add");
+      $indicator.find("i").first().removeClass("fa-edit").addClass("fa-plus-circle");
+      $texto.text("Nuevo producto");
+      $indicator.find(".modo-separator, .modo-action").remove();
+    } else {
+      $indicator.removeClass("modo-add").addClass("modo-edit");
+      $indicator.find("i").first().removeClass("fa-plus-circle").addClass("fa-edit");
+      $texto.text("Editando #" + idProducto + " — " + nombreProducto);
+      if ($indicator.find(".modo-action").length === 0) {
+        $indicator.append(
+          '<span class="modo-separator">|</span>' +
+          '<span class="modo-action"><i class="fas fa-undo"></i> Nuevo</span>'
+        );
+      }
+    }
+  }
+
+  function actualizarSemaforo(cantidadEfectiva, stockMinimo) {
+    const $semaforo = $("#semaforo-stock");
+
+    if (!stockMinimo || stockMinimo <= 0) {
+      $semaforo.hide();
+      return;
+    }
+
+    $semaforo.show();
+    $(".semaforo-luz").removeClass("activo-verde activo-amarillo activo-rojo");
+
+    const $etiqueta = $("#semaforo-etiqueta");
+    const $detalle  = $("#semaforo-detalle");
+    $detalle.text(`Actual: ${cantidadEfectiva} | Mínimo: ${stockMinimo}`);
+
+    if (cantidadEfectiva > stockMinimo * 2) {
+      // Verde
+      $("#luz-verde").addClass("activo-verde");
+      $etiqueta.text("Stock suficiente").attr("class", "semaforo-etiqueta verde");
+      $("#cantidad, #stock_minimo").removeClass("stock-bajo");
+      $("#stock-warning").html("");
+
+    } else if (cantidadEfectiva > stockMinimo) {
+      // Amarillo
+      $("#luz-amarillo").addClass("activo-amarillo");
+      $etiqueta.text("Stock moderado — considere reabastecer pronto").attr("class", "semaforo-etiqueta amarillo");
+      $("#cantidad").addClass("stock-bajo");
+      $("#stock_minimo").addClass("stock-bajo");
+      $("#stock-warning").html('<i class="fas fa-exclamation-triangle"></i> Stock próximo al mínimo');
+
+    } else {
+      // Rojo
+      $("#luz-rojo").addClass("activo-rojo");
+      $etiqueta.text("¡Stock crítico! Solicitar reabastecimiento").attr("class", "semaforo-etiqueta rojo");
+      $("#cantidad").addClass("stock-bajo");
+      $("#stock_minimo").addClass("stock-bajo");
+      $("#stock-warning").html('<i class="fas fa-exclamation-triangle"></i> Stock igual o por debajo del mínimo');
+
+      if (!alertaStockMostrada) {
+        alertaStockMostrada = true;
+        Swal.fire({
+          icon: "warning",
+          title: "Stock crítico",
+          html: `El producto <strong>${$("#nombre_producto").val()}</strong> tiene <strong>${cantidadEfectiva}</strong> unidad(es) disponible(s), igual o por debajo del mínimo de <strong>${stockMinimo}</strong>.<br><br>Se recomienda solicitar reabastecimiento a la brevedad.`,
+          confirmButtonText: "Entendido",
+          confirmButtonColor: "#dc3545",
+        });
+      }
+    }
+  }
+
+  function verificarStockBajo() {
+    const accion = $('input[name="action"]').val();
+    const stockMinimo = parseInt($("#stock_minimo").val()) || 0;
+    const delta = parseInt($("#cantidad").val()) || 0;
+    const cantidadEfectiva = accion === "update" ? cantidadActualBD + delta : delta;
+
+    // Actualizar etiqueta de stock resultante en modo edición
+    if (accion === "update" && delta !== 0) {
+      $("#stock-actual-valor").text(`${cantidadActualBD} → ${cantidadEfectiva}`);
+    } else if (accion === "update") {
+      $("#stock-actual-valor").text(cantidadActualBD);
+    }
+
+    actualizarSemaforo(cantidadEfectiva, stockMinimo);
+  }
+
+  function actualizarContadorChar(campo, counterId) {
+    const len = $(campo).val().length;
+    const $counter = $("#" + counterId);
+    $counter.text(len);
+    $counter.closest(".char-counter")
+      .removeClass("near-limit at-limit")
+      .addClass(len >= 300 ? "at-limit" : len >= 250 ? "near-limit" : "");
+  }
 
   function actualizarQR(id, nombre) {
     if (id && nombre) {
@@ -248,13 +347,19 @@ $(document).ready(function () {
     $("#id_producto").val(producto.id_producto).prop("readonly", true);
     $("#nombre_producto").val(producto.nombre_producto);
     $("#descripcion_producto").val(producto.descripcion_producto);
-    $("#cantidad").val("");
     cantidadActualBD = parseInt(producto.cantidad) || 0;
+    $("#cantidad").val("").attr("placeholder", "0 = sin cambio");
     $("#stock_minimo").val(producto.stock_minimo);
+
+    // Mostrar stock actual en bodega
+    $("#stock-actual-valor").text(cantidadActualBD);
+    $("#stock-actual-info").show();
+    $("#label-cantidad").text("Agregar al stock");
+    $("#cantidad-hint").show();
     $("#observaciones").val(producto.observaciones || "");
 
     // Llenar selectores
-    $("#id_estatus").val(producto.id_estatus);
+    $("#id_estatus").val(producto.id_estatus).trigger("change");
     $("#id_categoria").val(producto.id_categoria);
     $("#id_marca").val(producto.id_marca);
     $("#id_unidad").val(producto.id_unidad);
@@ -267,6 +372,17 @@ $(document).ready(function () {
     $("#btn-guardar")
       .html('<i class="fas fa-save"></i> Actualizar Producto')
       .prop("disabled", false);
+
+    // Actualizar indicador de modo
+    actualizarModoIndicador("update", producto.id_producto, producto.nombre_producto);
+
+    // Actualizar contadores de caracteres
+    actualizarContadorChar("#descripcion_producto", "descripcion-counter");
+    actualizarContadorChar("#observaciones", "observaciones-counter");
+
+    // Mostrar semáforo de stock con datos reales del producto
+    alertaStockMostrada = false;
+    actualizarSemaforo(cantidadActualBD, parseInt(producto.stock_minimo) || 0);
 
     // Actualizar QR
     actualizarQR(producto.id_producto, producto.nombre_producto);
@@ -384,16 +500,19 @@ $(document).ready(function () {
     $(".error").removeClass("error");
     $(".help-block").remove();
 
+    const accionActual = $('input[name="action"]').val();
     const requiredFields = [
       "#id_producto",
       "#nombre_producto",
-      "#cantidad",
       "#stock_minimo",
       "#id_estatus",
       "#id_categoria",
       "#id_marca",
       "#id_unidad",
     ];
+    if (accionActual === "add") {
+      requiredFields.push("#cantidad");
+    }
 
     requiredFields.forEach((field) => {
       const $field = $(field);
@@ -402,19 +521,20 @@ $(document).ready(function () {
         $field.addClass("error");
         $field.closest(".form-group").find(".help-block").remove();
         $field.after(
-          '<span class="help-block text-danger">Este campo es requerido</span>'
+          '<span class="help-block validation-error">Este campo es requerido</span>'
         );
       }
     });
 
-    const cantidad = parseInt($("#cantidad").val());
+    const cantidadVal = $("#cantidad").val().trim();
+    const cantidad = cantidadVal === "" ? 0 : parseInt(cantidadVal);
     const stockMinimo = parseInt($("#stock_minimo").val());
 
     if (isNaN(cantidad) || cantidad < 0) {
       $("#cantidad")
         .addClass("error")
         .after(
-          '<span class="help-block text-danger">Debe ser un número válido y no negativo</span>'
+          '<span class="help-block validation-error">Debe ser un número válido y no negativo</span>'
         );
       isValid = false;
     }
@@ -423,7 +543,7 @@ $(document).ready(function () {
       $("#stock_minimo")
         .addClass("error")
         .after(
-          '<span class="help-block text-danger">Debe ser un número válido y no negativo</span>'
+          '<span class="help-block validation-error">Debe ser un número válido y no negativo</span>'
         );
       isValid = false;
     }
@@ -495,6 +615,18 @@ $(document).ready(function () {
     });
   };
 
+  // Toggle QR en móvil
+  $("#qr-toggle-btn").on("click", function () {
+    const $collapsible = $("#qr-collapsible");
+    const $icon = $(this).find(".fa-chevron-down, .fa-chevron-up");
+    const isOpen = $collapsible.hasClass("open");
+
+    $collapsible.toggleClass("open");
+    $icon.toggleClass("fa-chevron-down", isOpen).toggleClass("fa-chevron-up", !isOpen);
+    $(this).find("span").text(isOpen ? "Ver código QR" : "Ocultar código QR");
+    $(this).attr("aria-expanded", !isOpen);
+  });
+
   // Event listeners para el modal de imagen
   $(document).on("click", ".close-modal, #imageModal", function (e) {
     if (e.target === this) {
@@ -522,34 +654,56 @@ $(document).ready(function () {
       return;
     }
 
-    $("#loader").show();
-
-    $.ajax({
-      url: "/GestiondeProductos/",
-      method: "GET",
-      data: { buscar: id_producto },
-      success: function (response) {
-        if (response.status === "success") {
-          cargarDatosProducto(response);
-        } else {
+    function ejecutarBusqueda() {
+      $("#loader").show();
+      $.ajax({
+        url: "/GestiondeProductos/",
+        method: "GET",
+        data: { buscar: id_producto },
+        success: function (response) {
+          if (response.status === "success") {
+            cargarDatosProducto(response);
+          } else {
+            Swal.fire({
+              icon: "info",
+              title: "Producto no encontrado",
+              text: "No se encontró ningún producto con ese ID.",
+            });
+          }
+        },
+        error: function () {
           Swal.fire({
-            icon: "info",
-            title: "Producto no encontrado",
-            text: "No se encontró ningún producto con ese ID.",
+            icon: "error",
+            title: "Error en la búsqueda",
+            text: "Ocurrió un error al buscar el producto.",
           });
+        },
+        complete: function () {
+          $("#loader").hide();
+        },
+      });
+    }
+
+    const tieneNombre = $("#nombre_producto").val().trim() !== "";
+    const tieneDescripcion = $("#descripcion_producto").val().trim() !== "";
+
+    if (tieneNombre || tieneDescripcion) {
+      Swal.fire({
+        icon: "question",
+        title: "Formulario con datos",
+        text: "El formulario tiene datos sin guardar. ¿Deseas descartarlos y cargar el producto buscado?",
+        showCancelButton: true,
+        confirmButtonText: "Sí, cargar producto",
+        cancelButtonText: "Cancelar",
+        confirmButtonColor: "#640404",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          ejecutarBusqueda();
         }
-      },
-      error: function () {
-        Swal.fire({
-          icon: "error",
-          title: "Error en la búsqueda",
-          text: "Ocurrió un error al buscar el producto.",
-        });
-      },
-      complete: function () {
-        $("#loader").hide();
-      },
-    });
+      });
+    } else {
+      ejecutarBusqueda();
+    }
   });
 
   $("#btn-guardar").on("click", function (event) {
@@ -668,6 +822,19 @@ $(document).ready(function () {
     actualizarQR(id, nombre);
   });
 
+  // QR automático al escribir el nombre del producto
+  let qrAutoTimeout;
+  $("#nombre_producto").on("input", function () {
+    clearTimeout(qrAutoTimeout);
+    const id = $("#id_producto").val().trim();
+    const nombre = $(this).val().trim();
+    if (id && nombre.length >= 3) {
+      qrAutoTimeout = setTimeout(function () {
+        actualizarQR(id, nombre);
+      }, 900);
+    }
+  });
+
   $("#imagen_producto").on("change", function () {
     const file = this.files[0];
     if (file) {
@@ -688,24 +855,39 @@ $(document).ready(function () {
     }
   });
 
-  $("#btn-nuevo").on("click", function () {
+  $("#modo-indicator").on("click", function () {
+    if (!$(this).hasClass("modo-edit")) return;
+
     $("form")[0].reset();
-    $("#id_producto").val("").prop("readonly", false);
-    $("#descripcion_producto").val("");
+    $("#id_producto").val(nextId).prop("readonly", true);
+    $("#cantidad").val("0").attr("placeholder", "");
+    $("#label-cantidad").text("Cantidad inicial");
+    $("#stock-actual-info").hide();
+    $("#cantidad-hint").hide();
+    $("#id_estatus").val("").trigger("change");
     $('input[name="action"]').val("add");
     $("#btn-guardar")
       .html('<i class="fas fa-save"></i> Guardar Producto')
       .prop("disabled", false);
-    $("#preview-image").attr("src", "").hide();
+    $("#preview-image").off("load error").attr("src", "").hide();
     $("#image-preview").hide();
     $("#file-name").text("No se seleccionó archivo");
     $(".error").removeClass("error");
     $(".help-block").remove();
     $(".validation-message").remove();
+    $("#cantidad, #stock_minimo").removeClass("stock-bajo");
+    $("#stock-warning").html("");
+    $("#semaforo-stock").hide();
+    $(".semaforo-luz").removeClass("activo-verde activo-amarillo activo-rojo");
+    alertaStockMostrada = false;
     limpiarQRInfo();
     nuevaImagenSeleccionada = false;
     cantidadActualBD = 0;
     currentProductData = null;
+    actualizarModoIndicador("add");
+    actualizarContadorChar("#descripcion_producto", "descripcion-counter");
+    actualizarContadorChar("#observaciones", "observaciones-counter");
+    $("#buscar").val("");
   });
 
   $("#btn-incrementar").on("click", function () {
@@ -805,8 +987,19 @@ $(document).ready(function () {
   console.log("- debugBusqueda(ID) - Debug completo de búsqueda");
   console.log("- debugImagen(ID) - Debug específico de imagen");
 
+  $("#cantidad, #stock_minimo").on("input change", verificarStockBajo);
+
+  $("#descripcion_producto").on("input", function () {
+    actualizarContadorChar("#descripcion_producto", "descripcion-counter");
+  });
+
+  $("#observaciones").on("input", function () {
+    actualizarContadorChar("#observaciones", "observaciones-counter");
+  });
+
   $("#id_producto").prop("readonly", true);
   $("#qr-image").hide();
   $("#image-preview").hide();
   limpiarQRInfo();
+
 });
