@@ -56,6 +56,21 @@ class ProxyAutenticacion:
                 except Session.DoesNotExist:
                     del self._sesiones_activas[username]
 
+            # Verificar en BD directamente (resiste reinicios del servidor)
+            try:
+                user_obj = User.objects.get(username=username)
+                for session in Session.objects.filter(expire_date__gte=now()):
+                    data = session.get_decoded()
+                    if str(data.get('_auth_user_id')) == str(user_obj.id):
+                        self._sesiones_activas[username] = {
+                            'session_key': session.session_key,
+                            'last_activity': now()
+                        }
+                        logger.warning(f"Sesión activa detectada en BD para {username}")
+                        return False, 'Ya existe una sesión activa con este usuario.'
+            except User.DoesNotExist:
+                pass
+
             if not self._autenticacion_real.autenticar(request):
                 logger.warning(f"Intento fallido de login para {username}")
                 return False, 'Usuario o contraseña incorrectos.'
