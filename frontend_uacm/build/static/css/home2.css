@@ -277,7 +277,7 @@ main {
 /* Cards Grid */
 .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
     margin-top: 2rem;
 }
@@ -296,7 +296,13 @@ main {
     animation-delay: calc(var(--card-index) * 0.15s);
     opacity: 0;
     animation-fill-mode: forwards;
+    border-top: 4px solid transparent;
 }
+
+.option-card.accent-blue   { border-top-color: #8b0606; }
+.option-card.accent-orange { border-top-color: #f5576c; }
+.option-card.accent-green  { border-top-color: #4facfe; }
+.option-card.accent-purple { border-top-color: #6a11cb; }
 
 @keyframes cardFadeIn {
     from {
@@ -362,6 +368,11 @@ main {
     color: white;
 }
 
+.card-icon.purple {
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: white;
+}
+
 /* Card Content */
 .card-title {
     font-size: 1.35rem;
@@ -404,6 +415,10 @@ main {
 
 .card-button.green {
     background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.card-button.purple {
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
 }
 
 .card-button:hover {
@@ -566,7 +581,7 @@ footer p {
 
 @media (max-width: 1024px) {
     .cards-grid {
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

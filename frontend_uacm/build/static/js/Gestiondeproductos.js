@@ -360,9 +360,9 @@ $(document).ready(function () {
 
     // Llenar selectores
     $("#id_estatus").val(producto.id_estatus).trigger("change");
-    $("#id_categoria").val(producto.id_categoria);
-    $("#id_marca").val(producto.id_marca);
-    $("#id_unidad").val(producto.id_unidad);
+    $("#id_categoria").val(producto.id_categoria).trigger("change");
+    $("#id_marca").val(producto.id_marca).trigger("change");
+    $("#id_unidad").val(producto.id_unidad).trigger("change");
 
     // Manejar imagen del producto
     manejarImagenProducto(producto);
@@ -865,6 +865,9 @@ $(document).ready(function () {
     $("#stock-actual-info").hide();
     $("#cantidad-hint").hide();
     $("#id_estatus").val("").trigger("change");
+    $("#id_categoria").val("").trigger("change");
+    $("#id_marca").val("").trigger("change");
+    $("#id_unidad").val("").trigger("change");
     $('input[name="action"]').val("add");
     $("#btn-guardar")
       .html('<i class="fas fa-save"></i> Guardar Producto')
@@ -1001,5 +1004,34 @@ $(document).ready(function () {
   $("#qr-image").hide();
   $("#image-preview").hide();
   limpiarQRInfo();
+
+  // Select2 — buscador en todos los dropdowns de clasificación
+  $("#id_categoria").select2({
+    placeholder: "Selecciona una categoría",
+    allowClear: true,
+    width: "100%",
+    language: { noResults: () => "Sin resultados" },
+  });
+
+  $("#id_marca").select2({
+    placeholder: "Selecciona una marca",
+    allowClear: true,
+    width: "100%",
+    language: { noResults: () => "Sin resultados" },
+  });
+
+  $("#id_estatus").select2({
+    placeholder: "Selecciona un estatus",
+    allowClear: false,
+    width: "100%",
+    minimumResultsForSearch: -1,
+  });
+
+  $("#id_unidad").select2({
+    placeholder: "Selecciona una unidad",
+    allowClear: false,
+    width: "100%",
+    minimumResultsForSearch: Infinity,
+  });
 
 });

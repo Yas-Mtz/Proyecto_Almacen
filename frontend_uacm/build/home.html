@@ -63,7 +63,7 @@
             <!-- Cards de opciones -->
             <div class="cards-grid">
                 <!-- Card 1: Gestión de Productos -->
-                <div class="option-card" style="--card-index: 0;">
+                <div class="option-card accent-blue" style="--card-index: 0;">
                     <div class="card-icon blue">
                         <i class="fas fa-boxes"></i>
                     </div>
@@ -78,7 +78,7 @@
                 </div>
 
                 <!-- Card 2: Reportes e Inventario -->
-                <div class="option-card" style="--card-index: 1;">
+                <div class="option-card accent-orange" style="--card-index: 1;">
                     <div class="card-icon orange">
                         <i class="fas fa-chart-line"></i>
                     </div>
@@ -93,7 +93,7 @@
                 </div>
 
                 <!-- Card 3: Solicitud de Artículos -->
-                <div class="option-card" style="--card-index: 2;">
+                <div class="option-card accent-green" style="--card-index: 2;">
                     <div class="card-icon green">
                         <i class="fas fa-shopping-cart"></i>
                     </div>
@@ -102,6 +102,21 @@
                         Elabora y gestiona las solicitudes de productos para el almacén de manera eficiente.
                     </p>
                     <a href="{% url 'solicitud' %}" class="card-button green">
+                        <span>Acceder</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <!-- Card 4: Gestión de Personal -->
+                <div class="option-card accent-purple" style="--card-index: 3;">
+                    <div class="card-icon purple">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="card-title">Gestión de Personal</h3>
+                    <p class="card-description">
+                        Administra el personal de la institución, sus roles, datos de contacto y categorías salariales.
+                    </p>
+                    <a href="#" class="card-button purple">
                         <span>Acceder</span>
                         <i class="fas fa-arrow-right"></i>
                     </a>

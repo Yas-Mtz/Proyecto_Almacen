@@ -1,3 +1,6 @@
+# Imágenes de productos (archivos locales, no se versionan)
+productos/
+
 # Python
 __pycache__/
 *.pyc
