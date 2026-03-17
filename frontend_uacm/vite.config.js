@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         home:  resolve(__dirname, 'index.html'),
         login: resolve(__dirname, 'login.html'),
+        gestiondeproductos: resolve(__dirname, 'gestiondeproductos.html'),
       }
     }
   },

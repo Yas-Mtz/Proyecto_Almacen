@@ -39,6 +39,13 @@ def gestiondeproductos(request):
         action = request.POST.get('action', 'add')
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
+        if not request.user.groups.filter(name__icontains='encargado').exists():
+            msg = 'No tienes permisos para modificar productos.'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': msg}, status=403)
+            messages.error(request, msg)
+            return redirect('gestiondeproductos')
+
         try:
             # Extracción de datos del request — responsabilidad del Controlador
             command_args = {
@@ -110,7 +117,7 @@ def gestiondeproductos(request):
         'persona_nombre': persona_nombre,
         'user_role': user_role,
     }
-    return render(request, 'gestiondeproductos.html', context)
+    return render(request, 'gestiondeproductos.html')
 
 
 @login_required(login_url='')
@@ -128,6 +135,34 @@ def verificar_producto(request):
     except Exception as e:
         logger.error(f"Error al verificar producto: {str(e)}", exc_info=True)
         return JsonResponse({'error': 'Error interno del servidor'}, status=500)
+
+
+@login_required(login_url='')
+def datos_gestion(request):
+    """API endpoint para React: catálogos e info de usuario"""
+    ultimo_producto = Producto.objects.order_by('-id_producto').first()
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+    try:
+        persona = Personal.objects.get(correo=request.user.username)
+        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
+    except Personal.DoesNotExist:
+        persona_nombre = request.user.username
+
+    try:
+        estatus_activo = Estatus.objects.get(nombre_estatus__icontains='activo').id_estatus
+    except Exception:
+        estatus_activo = None
+
+    return JsonResponse({
+        'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
+        'persona_nombre': persona_nombre,
+        'user_role': user_role,
+        'estatus_activo': estatus_activo,
+        'estatus_list': [{'id': e.id_estatus, 'nombre': e.nombre_estatus} for e in Estatus.objects.all()],
+        'categorias_list': [{'id': c.id_categoria, 'nombre': c.nombre_categoria} for c in CategoriaProducto.objects.all()],
+        'marcas_list': [{'id': m.id_marca, 'nombre': m.nombre_marca} for m in Marca.objects.all()],
+        'unidades_list': [{'id': u.id_unidad, 'nombre': u.nombre_unidad, 'abreviatura': u.abreviatura} for u in UnidadMedida.objects.all()],
+    })
 
 
 @csrf_exempt

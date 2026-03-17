@@ -279,19 +279,6 @@ function Home() {
             <span className="role-badge">{datos.user_role}</span>
           </div>
 
-          {/* Alerta stock bajo */}
-          {datos.productos_bajo_stock > 0 && (
-            <div className="alert-banner">
-              <i className="fas fa-exclamation-triangle"></i>
-              <span>
-                <strong>{datos.productos_bajo_stock} producto{datos.productos_bajo_stock !== 1 ? 's' : ''}</strong> requieren reabastecimiento
-              </span>
-              <a href="/Reportes/" className="alert-link">
-                Ver inventario <i className="fas fa-arrow-right"></i>
-              </a>
-            </div>
-          )}
-
           {/* Tarjetas */}
           <div className="hcards-grid">
             {tarjetas.map((t, i) => (
