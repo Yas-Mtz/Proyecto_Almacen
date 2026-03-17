@@ -10,5 +10,4 @@ urlpatterns = [
     path('cancelar/<int:solicitud_id>/', controllers.cancelar_solicitud, name='cancelar_solicitud'),
    # path('exportar/pdf/<int:solicitud_id>/', views.exportar_pdf, name='exportar_pdf'),
     #path('exportar/csv/<int:solicitud_id>/', views.exportar_csv, name='exportar_csv'),
-    #path('detalle/<int:solicitud_id>/', views.detalle_solicitud, name='detalle_solicitud'),
 ]
