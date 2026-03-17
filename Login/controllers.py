@@ -26,18 +26,29 @@ def login(request):
     if request.user.is_authenticated:
         return redirect('home')
 
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if request.method == "POST":
         try:
             success, error_msg = proxy_auth.autenticar(request)
             if success:
-                return redirect(request.POST.get('next', 'home'))
-            messages.error(request, error_msg or 'Usuario o contraseña incorrectos.')
+                next_url = request.POST.get('next', '/home/')
+                if is_ajax:
+                    return JsonResponse({'success': True, 'redirect': next_url})
+                return redirect(next_url)
+            error = error_msg or 'Usuario o contraseña incorrectos.'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error}, status=401)
+            messages.error(request, error)
         except Exception as e:
             logger.error(f"Error en login: {str(e)}", exc_info=True)
-            messages.error(request, 'Error en el sistema. Por favor intente más tarde.')
+            error = 'Error en el sistema. Por favor intente más tarde.'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error}, status=500)
+            messages.error(request, error)
         return render(request, 'login.html')
 
-    return render(request, 'login.html', {'next': request.GET.get('next', '')})
+    return render(request, 'login.html')
 
 
 @csrf_exempt

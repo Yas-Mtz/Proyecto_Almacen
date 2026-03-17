@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/static/',          // los assets se referencian como /static/assets/...
+  base: '/static/',
   build: {
-    outDir: 'build-react',  // carpeta de salida separada para no tocar el build actual
+    outDir: 'build-react',
+    rollupOptions: {
+      input: {
+        home:  resolve(__dirname, 'index.html'),
+        login: resolve(__dirname, 'login.html'),
+      }
+    }
   },
 })
