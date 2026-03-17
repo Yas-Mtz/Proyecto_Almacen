@@ -25,8 +25,8 @@
             
             <div class="user-profile" id="userProfile">
                 <div class="user-info">
-                    <span class="user-name">{{ user.username }}</span>
-                    <span class="user-role">Gerente</span>
+                    <span class="user-name">{{ persona_nombre }}</span>
+                    <span class="user-role">{{ user_role }}</span>
                 </div>
                 <div class="user-avatar">
                     <i class="fas fa-user"></i>
@@ -54,73 +54,72 @@
         <div class="container">
             <!-- Mensaje de bienvenida -->
             <div class="welcome-section">
-                <h2 class="welcome-title">¡Bienvenido de nuevo!</h2>
-                <p class="welcome-text">
-                    Hola <strong>{{ user.username }}</strong>, gestiona el inventario desde aquí
-                </p>
+                <span class="greeting-badge" id="greeting-badge">Bienvenido</span>
+                <h2 class="welcome-title">{{ persona_nombre }}</h2>
+                <span class="role-badge">{{ user_role }}</span>
             </div>
 
-            <!-- Cards de opciones -->
-            <div class="cards-grid">
-                <!-- Card 1: Gestión de Productos -->
-                <div class="option-card accent-blue" style="--card-index: 0;">
-                    <div class="card-icon blue">
+            <!-- Banner de alerta stock bajo -->
+            {% if productos_bajo_stock > 0 %}
+            <div class="alert-banner">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>
+                    <strong>{{ productos_bajo_stock }} producto{% if productos_bajo_stock != 1 %}s{% endif %}</strong>
+                    requieren reabastecimiento
+                </span>
+                <a href="{% url 'reportes' %}" class="alert-link">
+                    Ver inventario <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Tarjetas horizontales compactas -->
+            <div class="hcards-grid">
+
+                <a href="{% url 'gestiondeproductos' %}" class="hcard" style="--hcard-index: 0;">
+                    <div class="hcard-icon blue">
                         <i class="fas fa-boxes"></i>
                     </div>
-                    <h3 class="card-title">Gestión de Productos</h3>
-                    <p class="card-description">
-                        Administra los productos del almacén con registro, actualización y control de disponibilidad.
-                    </p>
-                    <a href="{% url 'gestiondeproductos' %}" class="card-button blue">
-                        <span>Acceder</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
+                    <div class="hcard-info">
+                        <span class="hcard-title">Gestión de Productos</span>
+                        <span class="hcard-stat">{{ total_productos }} <em>productos</em></span>
+                    </div>
+                    <i class="fas fa-arrow-right hcard-arrow"></i>
+                </a>
 
-                <!-- Card 2: Reportes e Inventario -->
-                <div class="option-card accent-orange" style="--card-index: 1;">
-                    <div class="card-icon orange">
+                <a href="{% url 'reportes' %}" class="hcard" style="--hcard-index: 1;">
+                    <div class="hcard-icon navy">
                         <i class="fas fa-chart-line"></i>
                     </div>
-                    <h3 class="card-title">Reportes e Inventario</h3>
-                    <p class="card-description">
-                        Genera reportes de solicitudes e inventarios por fecha para un mayor control del almacén.
-                    </p>
-                    <a href="{% url 'reportes' %}" class="card-button orange">
-                        <span>Acceder</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
+                    <div class="hcard-info">
+                        <span class="hcard-title">Reportes e Inventario</span>
+                        <span class="hcard-stat">{{ total_solicitudes }} <em>solicitudes</em></span>
+                    </div>
+                    <i class="fas fa-arrow-right hcard-arrow"></i>
+                </a>
 
-                <!-- Card 3: Solicitud de Artículos -->
-                <div class="option-card accent-green" style="--card-index: 2;">
-                    <div class="card-icon green">
+                <a href="{% url 'solicitud' %}" class="hcard" style="--hcard-index: 2;">
+                    <div class="hcard-icon teal">
                         <i class="fas fa-shopping-cart"></i>
                     </div>
-                    <h3 class="card-title">Solicitud de Artículos</h3>
-                    <p class="card-description">
-                        Elabora y gestiona las solicitudes de productos para el almacén de manera eficiente.
-                    </p>
-                    <a href="{% url 'solicitud' %}" class="card-button green">
-                        <span>Acceder</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
+                    <div class="hcard-info">
+                        <span class="hcard-title">Solicitud de Artículos</span>
+                        <span class="hcard-stat">{{ solicitudes_pendientes }} <em>pendientes</em></span>
+                    </div>
+                    <i class="fas fa-arrow-right hcard-arrow"></i>
+                </a>
 
-                <!-- Card 4: Gestión de Personal -->
-                <div class="option-card accent-purple" style="--card-index: 3;">
-                    <div class="card-icon purple">
+                <a href="#" class="hcard" style="--hcard-index: 3;">
+                    <div class="hcard-icon violet">
                         <i class="fas fa-users"></i>
                     </div>
-                    <h3 class="card-title">Gestión de Personal</h3>
-                    <p class="card-description">
-                        Administra el personal de la institución, sus roles, datos de contacto y categorías salariales.
-                    </p>
-                    <a href="#" class="card-button purple">
-                        <span>Acceder</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
+                    <div class="hcard-info">
+                        <span class="hcard-title">Gestión de Personal</span>
+                        <span class="hcard-stat">{{ total_personal }} <em>miembros</em></span>
+                    </div>
+                    <i class="fas fa-arrow-right hcard-arrow"></i>
+                </a>
+
             </div>
         </div>
     </main>

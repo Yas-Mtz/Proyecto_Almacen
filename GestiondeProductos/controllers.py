@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Producto, Estatus, CategoriaProducto, Marca, UnidadMedida
+from SistemaUACM.models import Personal
 from .command import (
     AgregarProductoCommand, ActualizarProductoCommand,
     generar_qr_temp, cambiar_estatus_producto, buscar_producto_por_id,
@@ -93,12 +94,21 @@ def gestiondeproductos(request):
 
     # GET — página principal
     ultimo_producto = Producto.objects.order_by('-id_producto').first()
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+    try:
+        persona = Personal.objects.get(correo=request.user.username)
+        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
+    except Personal.DoesNotExist:
+        persona_nombre = request.user.username
+
     context = {
         'estatus_list': Estatus.objects.all(),
         'categorias_list': CategoriaProducto.objects.all(),
         'marcas_list': Marca.objects.all(),
         'unidades_list': UnidadMedida.objects.all(),
         'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
+        'persona_nombre': persona_nombre,
+        'user_role': user_role,
     }
     return render(request, 'gestiondeproductos.html', context)
 

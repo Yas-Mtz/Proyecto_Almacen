@@ -13,20 +13,31 @@
 <body>
 
 <header class="header">
-    <div class="header-inner">
-        <div class="header-left">
+    <div class="header-content">
+        <div class="logo-section">
             <img src="{% static 'media/logouacm.jpg' %}" class="header-logo" alt="UACM">
             <a href="{% url 'home' %}" class="home-button">
                 <i class="fas fa-home"></i>
             </a>
-            <div class="header-titles">
+            <div class="header-title">
                 <h1>Solicitud de Artículos</h1>
-                <p>Registro, consulta y control de solicitudes</p>
+                <p class="header-subtitle">Registro, consulta y control de solicitudes</p>
             </div>
         </div>
-        <div class="header-user">
-            <span class="username">{{ user.username }}</span>
-            <div class="avatar"><i class="fas fa-user"></i></div>
+        <div class="user-profile" id="userProfile">
+            <div class="user-info">
+                <span class="user-name">{{ persona_nombre }}</span>
+                <span class="user-role">{{ user_role }}</span>
+            </div>
+            <div class="user-avatar"><i class="fas fa-user"></i></div>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="{% url 'home' %}" class="dropdown-item">
+                    <i class="fas fa-home"></i><span>Inicio</span>
+                </a>
+                <a href="{% url 'logout' %}" class="dropdown-item logout">
+                    <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                </a>
+            </div>
         </div>
     </div>
 </header>
@@ -60,7 +71,10 @@
               data-url-cancelar="{% url 'solicitud' %}cancelar/"
               data-url-aprobar="{% url 'solicitud' %}aprobar/"
               data-url-buscar="{% url 'solicitud' %}buscar/"
-              data-encargado="{{ es_encargado|yesno:'true,false' }}">
+              data-encargado="{{ es_encargado|yesno:'true,false' }}"
+              data-persona-id="{{ persona_id }}"
+              data-persona-nombre="{{ persona_nombre_completo }}"
+              data-persona-id-rol="{{ persona_id_rol }}">
 
             <div class="two-col-layout">
 
@@ -69,11 +83,13 @@
                 ════════════════════════════════════ -->
                 <div class="col-solicitante">
 
+                    {% if es_encargado %}
                     <div class="qr-scan-row">
                         <button type="button" class="btn btn-qr" id="btn-escanear-personal">
                             <i class="fas fa-qrcode"></i> Escanear QR de Personal
                         </button>
                     </div>
+                    {% endif %}
 
                     <div class="form-grid">
                         <div class="form-group">
@@ -240,8 +256,16 @@
 </div>
 
 <footer class="footer">
-    <p>"NADA HUMANO ME ES AJENO"</p>
+    <p>"Nada Humano Me Es Ajeno"</p>
+    <p class="footer-copy">Sistema de Gestión UACM © 2024</p>
 </footer>
 
+    <script>
+        const up = document.getElementById('userProfile');
+        if (up) {
+            up.addEventListener('click', e => { e.stopPropagation(); up.classList.toggle('active'); });
+            document.addEventListener('click', () => up.classList.remove('active'));
+        }
+    </script>
 </body>
 </html>

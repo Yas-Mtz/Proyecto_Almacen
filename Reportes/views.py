@@ -2,11 +2,24 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.db import connection
+from django.contrib.auth.decorators import login_required
 from datetime import datetime
+from SistemaUACM.models import Personal
 
+
+@login_required
 def reportes(request):
     """Renderiza la página de reportes"""
-    return render(request, 'reportes.html')
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+    try:
+        persona = Personal.objects.get(correo=request.user.username)
+        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
+    except Personal.DoesNotExist:
+        persona_nombre = request.user.username
+    return render(request, 'reportes.html', {
+        'persona_nombre': persona_nombre,
+        'user_role': user_role,
+    })
 
 @csrf_exempt
 def reporte_solicitudes(request):

@@ -23,23 +23,33 @@
 </head>
 <body>
 
-    <header class="header" role="banner">
-        <div class="header-left">
-            <div class="logo">
-                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" loading="lazy" width="80" height="80" decoding="async">
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <img src="{% static 'media/logouacm.jpg' %}" alt="Logo UACM" class="header-logo">
+                <a href="{% url 'home' %}" class="home-button" aria-label="Inicio">
+                    <i class="fas fa-home"></i>
+                </a>
+                <div class="header-title">
+                    <h1>Gestión de Productos</h1>
+                    <p class="header-subtitle">Control de inventario del almacén</p>
+                </div>
             </div>
-            <a href="{% url 'home' %}" class="home-button" aria-label="Inicio">
-                <i class="fas fa-home" aria-hidden="true"></i>
-            </a>
-            <div class="header-titles">
-                <h1>Gestión de Productos</h1>
-                <p>------</p>
+            <div class="user-profile" id="userProfile">
+                <div class="user-info">
+                    <span class="user-name">{{ persona_nombre }}</span>
+                    <span class="user-role">{{ user_role }}</span>
+                </div>
+                <div class="user-avatar"><i class="fas fa-user"></i></div>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="{% url 'home' %}" class="dropdown-item">
+                        <i class="fas fa-home"></i><span>Inicio</span>
+                    </a>
+                    <a href="{% url 'logout' %}" class="dropdown-item logout">
+                        <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                    </a>
+                </div>
             </div>
-        </div>
-
-        <div class="user-profile" id="userProfile" role="button" aria-expanded="false">
-            <i class="fas fa-user-circle" aria-hidden="true"></i>
-            <span class="user-name">{{ user.username }}</span>
         </div>
     </header>
 
@@ -306,9 +316,18 @@
         </div>
     </div>
 
-    <footer class="footer" role="contentinfo">
-        <p>"NADA HUMANO ME ES AJENO"</p>
+    <footer class="footer">
+        <p>"Nada Humano Me Es Ajeno"</p>
+        <p class="footer-copy">Sistema de Gestión UACM © 2024</p>
     </footer>
 
+    <script>
+        const up = document.getElementById('userProfile');
+        const dm = document.getElementById('dropdownMenu');
+        if (up) {
+            up.addEventListener('click', e => { e.stopPropagation(); up.classList.toggle('active'); });
+            document.addEventListener('click', () => up.classList.remove('active'));
+        }
+    </script>
 </body>
 </html>

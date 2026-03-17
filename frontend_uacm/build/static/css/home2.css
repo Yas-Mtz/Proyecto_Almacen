@@ -240,8 +240,12 @@ main {
 /* Welcome Section */
 .welcome-section {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 2rem;
     animation: fadeInUp 0.8s ease-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
 }
 
 @keyframes fadeInUp {
@@ -255,183 +259,196 @@ main {
     }
 }
 
+.greeting-badge {
+    display: inline-block;
+    padding: 0.3rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
 .welcome-title {
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     font-weight: 800;
     color: white;
-    margin-bottom: 0.5rem;
     letter-spacing: -0.5px;
+    line-height: 1.1;
 }
 
-.welcome-text {
+.role-badge {
+    display: inline-block;
+    padding: 0.35rem 1.1rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+/* Banner de alerta */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: rgba(255, 193, 7, 0.15);
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    border-left: 4px solid #ffc107;
+    border-radius: 14px;
+    padding: 1rem 1.4rem;
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.6s ease-out;
+    flex-wrap: wrap;
+}
+
+.alert-banner i {
+    color: #ffc107;
     font-size: 1.1rem;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 400;
+    flex-shrink: 0;
 }
 
-.welcome-text strong {
-    color: white;
+.alert-banner span {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    flex: 1;
+}
+
+.alert-banner strong {
+    color: #ffc107;
+}
+
+.alert-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #ffc107;
     font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: gap 0.2s ease;
+    white-space: nowrap;
 }
 
-/* Cards Grid */
-.cards-grid {
+.alert-link:hover {
+    gap: 0.7rem;
+}
+
+
+/* ============================================
+   TARJETAS HORIZONTALES COMPACTAS
+   ============================================ */
+
+.hcards-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 2rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
     margin-top: 2rem;
 }
 
-/* Option Card */
-.option-card {
+.hcard {
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(30px) saturate(180%);
-    border-radius: 24px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    animation: cardFadeIn 0.6s ease-out;
-    animation-delay: calc(var(--card-index) * 0.15s);
+    border-radius: 18px;
+    padding: 1.4rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.8rem;
+    text-decoration: none;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     opacity: 0;
-    animation-fill-mode: forwards;
-    border-top: 4px solid transparent;
+    animation: hcardIn 0.4s ease-out forwards;
+    animation-delay: calc(var(--hcard-index) * 0.08s);
+    border-top: 3px solid transparent;
 }
 
-.option-card.accent-blue   { border-top-color: #8b0606; }
-.option-card.accent-orange { border-top-color: #f5576c; }
-.option-card.accent-green  { border-top-color: #4facfe; }
-.option-card.accent-purple { border-top-color: #6a11cb; }
-
-@keyframes cardFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(30px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+@keyframes hcardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-.option-card:hover {
-    transform: translateY(-12px) scale(1.02);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+.hcard:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
 }
 
-.option-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    transition: left 0.6s ease;
-}
+/* Colores del borde superior al hacer hover */
+.hcard:nth-child(1) { border-top-color: #b91c1c; }
+.hcard:nth-child(2) { border-top-color: #1e40af; }
+.hcard:nth-child(3) { border-top-color: #0d9488; }
+.hcard:nth-child(4) { border-top-color: #7e22ce; }
 
-.option-card:hover::before {
-    left: 100%;
-}
-
-/* Card Icon */
-.card-icon {
-    width: 70px;
-    height: 70px;
-    border-radius: 20px;
+/* Ícono */
+.hcard-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    font-size: 1.5rem;
+    color: white;
     transition: transform 0.3s ease;
 }
 
-.option-card:hover .card-icon {
+.hcard:hover .hcard-icon {
     transform: scale(1.1) rotate(5deg);
 }
 
-.card-icon.blue {
-    background: linear-gradient(135deg, #640404, #8b0606);
-    color: white;
+.hcard-icon.blue   { background: linear-gradient(135deg, #640404, #b91c1c); }
+.hcard-icon.navy   { background: linear-gradient(135deg, #1e3a5f, #1e40af); }
+.hcard-icon.teal   { background: linear-gradient(135deg, #064e3b, #0d9488); }
+.hcard-icon.violet { background: linear-gradient(135deg, #3b0764, #7e22ce); }
+
+/* Texto */
+.hcard-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
-.card-icon.orange {
-    background: linear-gradient(135deg, #f093fb, #f5576c);
-    color: white;
-}
-
-.card-icon.green {
-    background: linear-gradient(135deg, #4facfe, #00f2fe);
-    color: white;
-}
-
-.card-icon.purple {
-    background: linear-gradient(135deg, #6a11cb, #2575fc);
-    color: white;
-}
-
-/* Card Content */
-.card-title {
-    font-size: 1.35rem;
+.hcard-title {
+    font-size: 0.88rem;
     font-weight: 700;
     color: #1a1a1a;
-    margin-bottom: 1rem;
     line-height: 1.3;
 }
 
-.card-description {
-    font-size: 0.95rem;
-    color: #666;
-    line-height: 1.7;
-    margin-bottom: 2rem;
-    min-height: 80px;
+.hcard-stat {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1;
 }
 
-/* Card Button */
-.card-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.9rem 1.8rem;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: white;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+.hcard-stat em {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #999;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 0.1rem;
 }
 
-.card-button.blue {
-    background: linear-gradient(135deg, #640404, #8b0606);
+/* Flecha */
+.hcard-arrow {
+    font-size: 0.8rem;
+    color: #ccc;
+    transition: color 0.2s, transform 0.2s;
 }
 
-.card-button.orange {
-    background: linear-gradient(135deg, #f093fb, #f5576c);
-}
-
-.card-button.green {
-    background: linear-gradient(135deg, #4facfe, #00f2fe);
-}
-
-.card-button.purple {
-    background: linear-gradient(135deg, #6a11cb, #2575fc);
-}
-
-.card-button:hover {
-    transform: translateX(5px);
-    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.25);
-}
-
-.card-button i {
-    transition: transform 0.3s ease;
-}
-
-.card-button:hover i {
-    transform: translateX(5px);
+.hcard:hover .hcard-arrow {
+    color: #888;
+    transform: translateX(3px);
 }
 
 /* ============================================
@@ -580,7 +597,7 @@ footer p {
    ============================================ */
 
 @media (max-width: 1024px) {
-    .cards-grid {
+    .hcards-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
@@ -621,13 +638,9 @@ footer p {
         font-size: 1rem;
     }
 
-    .cards-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-    }
-
-    .option-card {
-        padding: 2rem;
+    .hcards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
     }
 
     .modal-content {

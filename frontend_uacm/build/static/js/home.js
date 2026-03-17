@@ -16,7 +16,18 @@ $(document).ready(function () {
   startHeartbeat();
   startSessionCheck();
   updateSessionStatus("active");
+  setDynamicGreeting();
 });
+
+function setDynamicGreeting() {
+  const hour = new Date().getHours();
+  let greeting;
+  if (hour >= 6 && hour < 12)       greeting = "Buenos días";
+  else if (hour >= 12 && hour < 19) greeting = "Buenas tardes";
+  else                               greeting = "Buenas noches";
+  const badge = document.getElementById("greeting-badge");
+  if (badge) badge.textContent = greeting;
+}
 
 // ============================================
 // PERFIL DE USUARIO

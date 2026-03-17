@@ -23,6 +23,7 @@ const APP_URLS = {
 // DOM READY
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
+  autoRellenarPersonal();
   configurarExportar();
   configurarAgregarProducto();
   configurarEnvioSolicitud();
@@ -32,6 +33,42 @@ document.addEventListener("DOMContentLoaded", () => {
   configurarValidacionPersonal();
   configurarBuscarSolicitud();
 });
+
+// =====================================================
+// AUTO-RELLENAR DATOS DEL USUARIO (si no es encargado)
+// =====================================================
+function autoRellenarPersonal() {
+  if (ES_ENCARGADO) return;
+
+  const personaId     = _form?.dataset.personaId     || '';
+  const personaNombre = _form?.dataset.personaNombre  || '';
+  const personaIdRol  = _form?.dataset.personaIdRol   || '';
+
+  const campMatricula = document.getElementById('matricula');
+  const campNombre    = document.getElementById('nombre');
+  const selRol        = document.getElementById('id_rol');
+
+  if (campMatricula) {
+    campMatricula.value    = personaId;
+    campMatricula.readOnly = true;
+  }
+  if (campNombre) {
+    campNombre.value    = personaNombre;
+    campNombre.readOnly = true;
+  }
+  if (selRol && personaIdRol) {
+    for (const opt of selRol.options) {
+      if (String(opt.value) === String(personaIdRol)) {
+        opt.selected = true;
+        break;
+      }
+    }
+    selRol.disabled = true;
+  }
+
+  personalValido = true;
+  setPersonalStatus('ok');
+}
 
 // =====================================================
 // EXPORTAR (solo si hay solicitud)
@@ -410,6 +447,7 @@ async function procesarQRPersonal(qrData) {
         break;
       }
     }
+    selectRol.disabled = true;
   } catch (err) {
     alert("Error al leer el QR de personal.");
   }
@@ -443,6 +481,8 @@ function procesarQRProducto(qrData) {
 // VALIDACIÓN DE PERSONAL (blur en matrícula)
 // =====================================================
 function configurarValidacionPersonal() {
+  if (!ES_ENCARGADO) return; // el no-encargado ya fue rellenado automáticamente
+
   const input = document.getElementById("matricula");
   if (!input) return;
 
@@ -464,6 +504,7 @@ function configurarValidacionPersonal() {
         for (const opt of sel.options) {
           if (String(opt.value) === String(data.id_rol)) { opt.selected = true; break; }
         }
+        sel.disabled = true;
         personalValido = true;
         setPersonalStatus("ok");
       } else {
@@ -482,6 +523,8 @@ function configurarValidacionPersonal() {
     const campoNombre = document.getElementById("nombre");
     campoNombre.value    = "";
     campoNombre.readOnly = false;
+    const sel = document.getElementById("id_rol");
+    if (sel) { sel.disabled = false; sel.value = ""; }
   });
 }
 
@@ -535,6 +578,7 @@ function mostrarSolicitudEncontrada(solicitud) {
   for (const opt of selRol.options) {
     if (String(opt.value) === String(solicitud.id_rol)) { opt.selected = true; break; }
   }
+  if (selRol) selRol.disabled = true;
 
   // Ocultar botón enviar y QR personal (es solo lectura)
   const btnSubmit = document.querySelector("#form-solicitud button[type='submit']");

@@ -22,28 +22,32 @@
      HEADER UNIFICADO
 ======================= -->
 <header class="header">
-    <div class="header-inner">
-
-        <div class="header-left">
+    <div class="header-content">
+        <div class="logo-section">
             <img src="{% static 'media/logouacm.jpg' %}" class="header-logo" alt="UACM">
-
             <a href="{% url 'home' %}" class="home-button">
                 <i class="fas fa-home"></i>
             </a>
-
-            <div class="header-titles">
+            <div class="header-title">
                 <h1>Reportes</h1>
-                <p>Solicitudes e Inventarios</p>
+                <p class="header-subtitle">Solicitudes e Inventarios</p>
             </div>
         </div>
-
-        <div class="header-user">
-            <span class="username">{{ user.username }}</span>
-            <div class="avatar">
-                <i class="fas fa-user"></i>
+        <div class="user-profile" id="userProfile">
+            <div class="user-info">
+                <span class="user-name">{{ persona_nombre }}</span>
+                <span class="user-role">{{ user_role }}</span>
+            </div>
+            <div class="user-avatar"><i class="fas fa-user"></i></div>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="{% url 'home' %}" class="dropdown-item">
+                    <i class="fas fa-home"></i><span>Inicio</span>
+                </a>
+                <a href="{% url 'logout' %}" class="dropdown-item logout">
+                    <i class="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span>
+                </a>
             </div>
         </div>
-
     </div>
 </header>
 
@@ -140,7 +144,15 @@
 
 <footer class="footer">
     <p>"Nada Humano Me Es Ajeno"</p>
+    <p class="footer-copy">Sistema de Gestión UACM © 2024</p>
 </footer>
 
+    <script>
+        const up = document.getElementById('userProfile');
+        if (up) {
+            up.addEventListener('click', e => { e.stopPropagation(); up.classList.toggle('active'); });
+            document.addEventListener('click', () => up.classList.remove('active'));
+        }
+    </script>
 </body>
 </html>
