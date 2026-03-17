@@ -59,7 +59,8 @@
               data-url-personal-qr="{% url 'buscar_personal_qr' %}"
               data-url-cancelar="{% url 'solicitud' %}cancelar/"
               data-url-aprobar="{% url 'solicitud' %}aprobar/"
-              data-url-buscar="{% url 'solicitud' %}buscar/">
+              data-url-buscar="{% url 'solicitud' %}buscar/"
+              data-encargado="{{ es_encargado|yesno:'true,false' }}">
 
             <div class="two-col-layout">
 

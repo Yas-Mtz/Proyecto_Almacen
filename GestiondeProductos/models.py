@@ -1,27 +1,16 @@
 from django.db import models
-
-class Estatus(models.Model):
-    id_estatus = models.AutoField(primary_key=True, db_column='id_estatus')
-    nombre_estatus = models.CharField(max_length=100, db_column='nombre_estatus')
-
-    class Meta:
-        db_table = 'estatus'
-        managed = False  # Ajusta según necesites
-        verbose_name_plural = 'estatus'
-
-    def __str__(self):
-        return self.nombre_estatus
+from SistemaUACM.models import Estatus
 
 
 class CategoriaProducto(models.Model):
     id_categoria = models.AutoField(primary_key=True, db_column='id_categoria')
     nombre_categoria = models.CharField(max_length=100, db_column='nombre_categoria')
     descripcion_categoria = models.CharField(max_length=300, db_column='descripcion_categoria')
+    id_estatus = models.ForeignKey(Estatus, on_delete=models.DO_NOTHING, null=True, blank=True, db_column='id_estatus')
     fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='fecha_creacion')
 
     class Meta:
         db_table = 'categoria_producto'
-        managed = False  # Ajusta según necesites
         verbose_name = 'Categoría de Producto'
         verbose_name_plural = 'Categorías de Producto'
 
@@ -36,7 +25,6 @@ class UnidadMedida(models.Model):
 
     class Meta:
         db_table = 'unidad_medida'
-        managed = False  # Ajusta según necesites
         verbose_name = 'Unidad de Medida'
         verbose_name_plural = 'Unidades de Medida'
 
@@ -50,7 +38,6 @@ class Marca(models.Model):
 
     class Meta:
         db_table = 'marca'
-        managed = False  # Ajusta según necesites
         verbose_name = 'Marca'
         verbose_name_plural = 'Marcas'
 
@@ -115,7 +102,6 @@ class Producto(models.Model):
 
     class Meta:
         db_table = 'producto'
-        managed = False  # Ajusta según necesites
         verbose_name = 'Producto'
         verbose_name_plural = 'Productos'
 

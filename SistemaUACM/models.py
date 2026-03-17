@@ -7,7 +7,6 @@ class Estatus(models.Model):
 
     class Meta:
         db_table = 'estatus'
-        managed = False
         verbose_name_plural = 'estatus'
 
     def __str__(self):
@@ -20,7 +19,6 @@ class TipoAlmacen(models.Model):
 
     class Meta:
         db_table = 'tipo_almacen'
-        managed = False
 
     def __str__(self):
         return self.tipo_almacen
@@ -32,7 +30,6 @@ class EstadoAlmacen(models.Model):
 
     class Meta:
         db_table = 'estado_almacen'
-        managed = False
 
     def __str__(self):
         return self.nombre_estado_almacen
@@ -45,7 +42,6 @@ class Rol(models.Model):
 
     class Meta:
         db_table = 'rol'
-        managed = False  # Crucial para evitar creación de tablas
 
     def __str__(self):
         return self.nombre_rol
@@ -58,7 +54,6 @@ class CategoriaSalarial(models.Model):
 
     class Meta:
         db_table = 'categoria_salarial'
-        managed = False
 
 
 class Personal(models.Model):
@@ -79,7 +74,6 @@ class Personal(models.Model):
 
     class Meta:
         db_table = 'personal'
-        managed = False
 
     def __str__(self):
         return f"{self.nombre_personal} {self.apellido_paterno}"
@@ -104,7 +98,6 @@ class Almacen(models.Model):
 
     class Meta:
         db_table = 'almacen'
-        managed = False  # Evita que Django cree/modifique la tabla
 
     def __str__(self):
         return f"Almacen {self.id_almacen} - {self.direccion}"

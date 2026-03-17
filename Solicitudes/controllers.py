@@ -8,17 +8,27 @@ import json
 import re
 
 ESTATUS_SOL = {1: 'SOLICITADA', 2: 'APROBADA', 3: 'CANCELADA'}
+ID_ALMACEN_CENTRAL = 1
+
+
+def _es_encargado(user):
+    return user.groups.filter(name='Encargado Almacen').exists()
 
 
 @login_required
 def solicitud(request):
-    almacenes = Almacen.objects.select_related("id_talmacen").all()
+    encargado = _es_encargado(request.user)
+    if encargado:
+        almacenes = Almacen.objects.select_related("id_talmacen").all()
+    else:
+        almacenes = Almacen.objects.select_related("id_talmacen").exclude(id_almacen=ID_ALMACEN_CENTRAL)
     productos = Producto.objects.all()
     roles = Rol.objects.all()
     return render(request, "solicitud.html", {
         "almacenes": almacenes,
         "productos": productos,
-        "roles": roles
+        "roles": roles,
+        "es_encargado": encargado,
     })
 
 
@@ -29,6 +39,9 @@ def crear_solicitud(request):
 
     try:
         data = json.loads(request.body)
+
+        if int(data.get("id_almacen", 0)) == ID_ALMACEN_CENTRAL and not _es_encargado(request.user):
+            return JsonResponse({"error": "Solo el Encargado de Almacén puede solicitar al Almacén Central"}, status=403)
 
         id_personal = data.get("id_personal") or None
         observaciones = data.get("observaciones_solicitud") or None
@@ -164,6 +177,8 @@ def buscar_solicitud(request, solicitud_id):
 def aprobar_solicitud(request, solicitud_id):
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
+    if not _es_encargado(request.user):
+        return JsonResponse({"error": "No tienes permisos para aprobar solicitudes"}, status=403)
 
     try:
         with connection.cursor() as cursor:

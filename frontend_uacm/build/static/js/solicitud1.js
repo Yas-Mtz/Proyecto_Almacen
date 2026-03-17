@@ -8,6 +8,7 @@ let personalValido  = false;
 // URLS DEL SISTEMA
 // ===============================
 const _form = document.getElementById("form-solicitud");
+const ES_ENCARGADO = _form?.dataset.encargado === "true";
 const APP_URLS = {
   crear_solicitud:    _form?.dataset.url,
   buscar_personal_qr: _form?.dataset.urlPersonalQr,
@@ -328,7 +329,7 @@ function actualizarBotonesEstatus(estatus) {
   // Solo en SOLICITADA se puede aprobar o cancelar
   const accionable = estatus === "SOLICITADA";
   if (btnCancelar) btnCancelar.style.display = accionable ? "inline-flex" : "none";
-  if (btnAprobar)  btnAprobar.style.display  = accionable ? "inline-flex" : "none";
+  if (btnAprobar)  btnAprobar.style.display  = (accionable && ES_ENCARGADO) ? "inline-flex" : "none";
 }
 
 // =====================================================
