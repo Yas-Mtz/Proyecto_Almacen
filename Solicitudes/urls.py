@@ -3,6 +3,7 @@ from . import controllers
 
 urlpatterns = [
     path('', controllers.solicitud, name='solicitud'),
+    path('datos/', controllers.datos_solicitud, name='datos_solicitud'),
     path('crear/', controllers.crear_solicitud, name='crear_solicitud'),  # POST
     path('buscar-personal/', controllers.buscar_personal_qr, name='buscar_personal_qr'),
     path('buscar/<int:solicitud_id>/', controllers.buscar_solicitud, name='buscar_solicitud'),

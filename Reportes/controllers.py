@@ -16,11 +16,21 @@ def reportes(request):
         persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
     except Personal.DoesNotExist:
         persona_nombre = request.user.username
-    return render(request, 'reportes.html', {
-        'persona_nombre': persona_nombre,
-        'user_role': user_role,
-    })
+    return render(request, 'reportes.html')
 
+
+@login_required
+def datos_reportes(request):
+    """API endpoint para React: info de usuario"""
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+    try:
+        persona = Personal.objects.get(correo=request.user.username)
+        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
+    except Personal.DoesNotExist:
+        persona_nombre = request.user.username
+    return JsonResponse({'persona_nombre': persona_nombre, 'user_role': user_role})
+
+@login_required
 @csrf_exempt
 def reporte_solicitudes(request):
     if request.method == 'POST':
@@ -54,6 +64,7 @@ def reporte_solicitudes(request):
         # Retornar los datos como JSON para que el frontend los consuma
         return JsonResponse({'productos': productos})
 
+@login_required
 def inventario(request):
     """Obtener los datos de inventario y devolverlos en formato JSON"""
     # Llamar al procedimiento almacenado para obtener todos los artículos

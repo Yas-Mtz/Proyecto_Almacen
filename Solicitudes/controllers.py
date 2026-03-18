@@ -39,16 +39,55 @@ def solicitud(request):
         persona_id = ''
         persona_id_rol = ''
 
-    return render(request, "solicitud.html", {
-        "almacenes": almacenes,
-        "productos": productos,
-        "roles": roles,
-        "es_encargado": encargado,
-        "persona_nombre": persona_nombre,
-        "user_role": user_role,
-        "persona_id": persona_id,
-        "persona_nombre_completo": nombre_completo,
-        "persona_id_rol": persona_id_rol,
+    return render(request, "solicitud.html")
+
+
+@login_required
+def datos_solicitud(request):
+    """API endpoint para React: catálogos e info de usuario"""
+    encargado = _es_encargado(request.user)
+    if encargado:
+        almacenes = Almacen.objects.select_related("id_talmacen").all()
+    else:
+        almacenes = Almacen.objects.select_related("id_talmacen").exclude(id_almacen=ID_ALMACEN_CENTRAL)
+
+    productos = Producto.objects.all()
+    roles     = Rol.objects.all()
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+
+    try:
+        persona = Personal.objects.select_related('id_rol').get(correo=request.user.username)
+        persona_nombre   = f"{persona.nombre_personal} {persona.apellido_paterno}"
+        nombre_completo  = persona_nombre
+        if persona.apellido_materno:
+            nombre_completo += f" {persona.apellido_materno}"
+        persona_id     = persona.id_personal
+        persona_id_rol = persona.id_rol.id_rol if persona.id_rol else ''
+    except Personal.DoesNotExist:
+        persona_nombre  = request.user.username
+        nombre_completo = request.user.username
+        persona_id      = ''
+        persona_id_rol  = ''
+
+    return JsonResponse({
+        'es_encargado':          encargado,
+        'persona_nombre':        persona_nombre,
+        'persona_nombre_completo': nombre_completo,
+        'persona_id':            persona_id,
+        'persona_id_rol':        persona_id_rol,
+        'user_role':             user_role,
+        'almacenes': [
+            {'id_almacen': a.id_almacen, 'tipo_almacen': a.id_talmacen.tipo_almacen}
+            for a in almacenes
+        ],
+        'productos': [
+            {'id_producto': p.id_producto, 'nombre_producto': p.nombre_producto, 'cantidad': p.cantidad}
+            for p in productos
+        ],
+        'roles': [
+            {'id_rol': r.id_rol, 'nombre_rol': r.nombre_rol}
+            for r in roles
+        ],
     })
 
 

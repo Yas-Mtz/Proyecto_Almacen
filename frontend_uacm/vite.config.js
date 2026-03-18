@@ -12,6 +12,8 @@ export default defineConfig({
         home:  resolve(__dirname, 'index.html'),
         login: resolve(__dirname, 'login.html'),
         gestiondeproductos: resolve(__dirname, 'gestiondeproductos.html'),
+        solicitud:          resolve(__dirname, 'solicitud.html'),
+        reportes:           resolve(__dirname, 'reportes.html'),
       }
     }
   },
