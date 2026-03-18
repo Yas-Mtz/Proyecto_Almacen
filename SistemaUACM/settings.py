@@ -126,8 +126,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'  # Ruta base para archivos estáticos
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'frontend_uacm/build/static'),
-    os.path.join(BASE_DIR, 'frontend_uacm/build-react'),  # assets de React (/static/assets/...)
+    os.path.join(BASE_DIR, 'frontend_uacm/build-react'),
 ]
 # Carpeta donde se recopilan los archivos
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
