@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.shortcuts import render, redirect
@@ -38,13 +39,6 @@ def gestiondeproductos(request):
     if request.method == 'POST':
         action = request.POST.get('action', 'add')
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
-        if not request.user.groups.filter(name__icontains='encargado').exists():
-            msg = 'No tienes permisos para modificar productos.'
-            if is_ajax:
-                return JsonResponse({'success': False, 'message': msg}, status=403)
-            messages.error(request, msg)
-            return redirect('gestiondeproductos')
 
         try:
             # Extracción de datos del request — responsabilidad del Controlador
@@ -177,3 +171,47 @@ def actualizar_stock(request):
     )
     status_code = 200 if result['success'] else 400
     return JsonResponse(result, status=status_code)
+
+
+@login_required
+def crear_producto_rapido(request):
+    """Crea un producto nuevo desde el formulario de solicitudes y devuelve su ID"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+
+        # Estatus inactivo (producto aún no recibido)
+        estatus = Estatus.objects.filter(nombre_estatus__icontains='inactivo').first()
+        if not estatus:
+            return JsonResponse({'success': False, 'message': 'No se encontró el estatus Inactivo en el catálogo.'}, status=400)
+
+        # Marca "Sin marca" — se crea si no existe
+        marca, _ = Marca.objects.get_or_create(nombre_marca='Sin marca')
+
+        ultimo = Producto.objects.order_by('-id_producto').first()
+        next_id = (ultimo.id_producto + 1) if ultimo else 1
+
+        command = AgregarProductoCommand(
+            id_producto=next_id,
+            nombre_producto=data.get('nombre_producto', '').strip(),
+            descripcion_producto=data.get('descripcion_producto', ''),
+            cantidad=0,
+            stock_minimo=0,
+            estatus_id=estatus.id_estatus,
+            categoria_id=data.get('categoria_id'),
+            marca_id=marca.id_marca,
+            unidad_id=data.get('unidad_id'),
+            observaciones=data.get('observaciones', ''),
+        )
+        result = command.execute()
+        if result['success']:
+            return JsonResponse({
+                'success': True,
+                'id_producto': next_id,
+                'nombre_producto': data.get('nombre_producto', '').strip(),
+                'cantidad': 0,
+            })
+        return JsonResponse(result, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

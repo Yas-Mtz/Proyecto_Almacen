@@ -655,7 +655,83 @@ tbody tr:hover { background: rgba(100,4,4,.03); }
 .qr-scan-row {
     display: flex;
     justify-content: flex-end;
+    gap: .5rem;
     margin-bottom: 1rem;
+}
+
+/* Botones icono redondos (QR y nuevo producto) */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all .22s ease;
+    flex-shrink: 0;
+}
+
+.btn-icon-qr {
+    background: linear-gradient(135deg, #1a6b3c, #28a745);
+    color: white;
+    box-shadow: 0 4px 12px rgba(40,167,69,.25);
+}
+
+.btn-icon-qr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(40,167,69,.38);
+}
+
+.btn-icon-new {
+    background: linear-gradient(135deg, #0f6674, #17a2b8);
+    color: white;
+    box-shadow: 0 4px 12px rgba(23,162,184,.25);
+}
+
+.btn-icon-new:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(23,162,184,.38);
+}
+
+/* Controles +/- de cantidad en tabla */
+.qty-control {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.qty-control span {
+    min-width: 1.8rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: .92rem;
+}
+
+.btn-qty {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+    font-weight: 700;
+    color: #555;
+    padding: 0;
+    line-height: 1;
+    transition: all .15s;
+}
+
+.btn-qty:hover {
+    background: rgba(100,4,4,.08);
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 .btn-qr {
@@ -750,6 +826,11 @@ tbody tr:hover { background: rgba(100,4,4,.03); }
     background: #5a6268;
     transform: translateY(-1px);
 }
+
+/* =======================
+   SWEETALERT SOBRE MODALES
+======================= */
+.swal2-container { z-index: 99999 !important; }
 
 /* =======================
    FOOTER

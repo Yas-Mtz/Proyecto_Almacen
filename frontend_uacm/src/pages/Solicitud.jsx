@@ -47,6 +47,9 @@ export default function Solicitud() {
   const [exportOpen, setExportOpen]           = useState(false)
   const [exportFormato, setExportFormato]     = useState('pdf')
   const [dropdownOpen, setDropdownOpen]       = useState(false)
+  const [modalNuevoProd, setModalNuevoProd]   = useState(false)
+  const [catalogosModal, setCatalogosModal]   = useState(null)
+  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
 
   const qrInputRef  = useRef(null)
   const rolRef      = useRef(null)
@@ -81,16 +84,6 @@ export default function Solicitud() {
       .then(r => r.json())
       .then(d => {
         setDatos(d)
-        if (!d.es_encargado) {
-          setForm(f => ({
-            ...f,
-            matricula: String(d.persona_id || ''),
-            nombre:    d.persona_nombre_completo || '',
-            id_rol:    String(d.persona_id_rol || ''),
-          }))
-          setPersonalValido(true)
-          setPersonalStatus('ok')
-        }
       })
       .catch(() => setDatos({}))
   }, [])
@@ -134,8 +127,53 @@ export default function Solicitud() {
     window.$(productoRef.current).val(prodSel.id_producto).trigger('change.select2')
   }, [prodSel.id_producto])
 
-  const esEncargado = datos?.es_encargado
+  // ── Reinicializar Select2 de producto cuando cambia la lista o el almacén ──
+  useEffect(() => {
+    if (!window.$ || !productoRef.current) return
+    const $el = window.$(productoRef.current)
+    if ($el.data('select2')) $el.select2('destroy')
+    $el.select2({ placeholder: 'Seleccione un producto', width: '100%' })
+      .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
+    // Limpiar selección si el producto actual quedó fuera del filtro
+    if (prodSel.id_producto) {
+      const sigueDisponible = productosFiltrados.find(p => String(p.id_producto) === prodSel.id_producto)
+      if (sigueDisponible) $el.val(prodSel.id_producto).trigger('change.select2')
+      else setProdSel(s => ({ ...s, id_producto: '' }))
+    }
+  }, [datos?.productos?.length, form.id_almacen])
+
   const accionable  = solicitudActual?.estatus === 'SOLICITADA'
+
+  // Filtrar almacenes según el rol del solicitante
+  const solicitanteRolNombre = form.id_rol
+    ? (datos?.roles?.find(r => String(r.id_rol) === String(form.id_rol))?.nombre_rol || '')
+    : ''
+  const solicitanteEsEncargado = solicitanteRolNombre.toLowerCase().includes('encargado')
+  const almacenesFiltrados = !form.id_rol || solicitanteEsEncargado
+    ? (datos?.almacenes || [])
+    : (datos?.almacenes || []).filter(a => a.tipo_almacen.toLowerCase().includes('cuautepec'))
+
+  // Filtrar productos según almacén destino:
+  // Central (id=1) → todos; Cuautepec u otro → excluir Inactivo (2) y Agotado (3)
+  const ESTATUS_EXCLUIDOS_CUAUTEPEC = [2, 3]
+  const productosFiltrados = String(form.id_almacen) === '1'
+    ? (datos?.productos || [])
+    : (datos?.productos || []).filter(p => !ESTATUS_EXCLUIDOS_CUAUTEPEC.includes(p.id_estatus))
+
+  // ── Reinicializar Select2 de almacén cuando cambian las opciones ───────────
+  useEffect(() => {
+    if (!window.$ || !almacenRef.current) return
+    const $el = window.$(almacenRef.current)
+    if ($el.data('select2')) $el.select2('destroy')
+    $el.select2({ placeholder: 'Seleccione un almacén', width: '100%' })
+      .on('change.select2', e => setForm(f => ({ ...f, id_almacen: e.target.value })))
+    // Auto-seleccionar si solo hay una opción
+    if (!solicitudActual && almacenesFiltrados.length === 1) {
+      setForm(f => ({ ...f, id_almacen: String(almacenesFiltrados[0].id_almacen) }))
+    } else if (!solicitudActual && form.id_almacen && !almacenesFiltrados.find(a => String(a.id_almacen) === form.id_almacen)) {
+      setForm(f => ({ ...f, id_almacen: '' }))
+    }
+  }, [solicitanteEsEncargado])
 
   // ── Agregar producto a tabla ───────────────────────────────────────────────
   const handleAgregarProducto = () => {
@@ -287,22 +325,27 @@ export default function Solicitud() {
     setProdSel(s => ({ ...s, id_producto: idProducto }))
   }
 
-  // ── Enter en input QR ──────────────────────────────────────────────────────
+  // ── Enter en input QR — detección automática ──────────────────────────────
   const handleQrEnter = async (e) => {
     if (e.key !== 'Enter') return
     e.preventDefault()
     const contenido = qrInput.trim()
-    const modo = qrModo
     setQrModo(null)
     setQrInput('')
     if (!contenido) return
-    if (modo === 'personal')      await procesarQRPersonal(contenido)
-    else if (modo === 'producto') procesarQRProducto(contenido)
+    // URL → QR de personal; "id - nombre" → QR de producto
+    if (contenido.startsWith('http://') || contenido.startsWith('https://')) {
+      await procesarQRPersonal(contenido)
+    } else if (contenido.includes(' - ')) {
+      procesarQRProducto(contenido)
+    } else {
+      // Fallback: intentar como personal (matrícula directa u otro formato)
+      await procesarQRPersonal(contenido)
+    }
   }
 
   // ── Validar personal en blur (solo encargado) ──────────────────────────────
   const handleMatriculaBlur = async () => {
-    if (!esEncargado) return
     const valor = form.matricula.trim()
     if (!valor) { setPersonalStatus(null); return }
     setPersonalStatus('cargando')
@@ -320,6 +363,54 @@ export default function Solicitud() {
     } catch {
       setPersonalValido(false)
       setPersonalStatus('error')
+    }
+  }
+
+  // ── Abrir modal nuevo producto ─────────────────────────────────────────────
+  const abrirModalNuevoProd = async () => {
+    if (!catalogosModal) {
+      try {
+        const res = await fetch('/GestiondeProductos/datos/')
+        const d = await res.json()
+        setCatalogosModal(d)
+      } catch {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los catálogos.' }); return
+      }
+    }
+    setModalNuevoProd(true)
+  }
+
+  // ── Guardar nuevo producto ─────────────────────────────────────────────────
+  const handleGuardarNuevoProd = async () => {
+    if (!formNuevoProd.nombre.trim()) {
+      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa el nombre del producto.' }); return
+    }
+    if (!formNuevoProd.id_categoria || !formNuevoProd.id_unidad) {
+      window.Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Selecciona categoría y unidad.' }); return
+    }
+    try {
+      const res = await fetch('/GestiondeProductos/crear-rapido/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({
+          nombre_producto:      formNuevoProd.nombre.trim(),
+          descripcion_producto: formNuevoProd.descripcion,
+          categoria_id:         formNuevoProd.id_categoria,
+          unidad_id:            formNuevoProd.id_unidad,
+        }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        setDatos(d => ({ ...d, productos: [...d.productos, { id_producto: result.id_producto, nombre_producto: result.nombre_producto, cantidad: result.cantidad }] }))
+        setProdSel(s => ({ ...s, id_producto: String(result.id_producto) }))
+        setModalNuevoProd(false)
+        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+        window.Swal.fire({ icon: 'success', title: 'Producto creado', text: `"${result.nombre_producto}" registrado correctamente.`, timer: 2000, showConfirmButton: false })
+      } else {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: result.message })
+      }
+    } catch (err) {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: err.message })
     }
   }
 
@@ -417,20 +508,12 @@ export default function Solicitud() {
               {/* ── Columna izquierda: Datos del solicitante ── */}
               <div className="col-solicitante">
 
-                {esEncargado && !solicitudActual && (
-                  <div className="qr-scan-row">
-                    <button type="button" className="btn btn-qr" onClick={() => setQrModo('personal')}>
-                      <i className="fas fa-qrcode"></i> Escanear QR de Personal
-                    </button>
-                  </div>
-                )}
-
                 <div className="form-grid">
                   <div className="form-group">
                     <label><i className="fas fa-id-card"></i> Matrícula</label>
                     <input type="text" placeholder="Ej. 2024001" autoComplete="off"
                       value={form.matricula}
-                      readOnly={!esEncargado || !!solicitudActual}
+                      readOnly={!!solicitudActual}
                       onChange={e => {
                         setForm(f => ({ ...f, matricula: e.target.value, nombre: '', id_rol: '' }))
                         setPersonalValido(false)
@@ -445,13 +528,13 @@ export default function Solicitud() {
                   <div className="form-group">
                     <label><i className="fas fa-user"></i> Nombre</label>
                     <input type="text" placeholder="Nombre completo" value={form.nombre}
-                      readOnly={!!solicitudActual || (!esEncargado) || !!form.nombre}
+                      readOnly={!!solicitudActual || !!form.nombre}
                       onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
                   </div>
                   <div className="form-group">
                     <label><i className="fas fa-briefcase"></i> Cargo</label>
                     <select ref={rolCallbackRef}
-                      disabled={!!solicitudActual || !esEncargado || !!form.id_rol}>
+                      disabled={!!solicitudActual || !!form.id_rol}>
                       <option value="">Seleccione un cargo</option>
                       {datos.roles?.map(r => <option key={r.id_rol} value={r.id_rol}>{r.nombre_rol}</option>)}
                     </select>
@@ -460,7 +543,7 @@ export default function Solicitud() {
                     <label><i className="fas fa-warehouse"></i> Almacén destino</label>
                     <select ref={almacenCallbackRef} disabled={!!solicitudActual}>
                       <option value="">Seleccione un almacén</option>
-                      {datos.almacenes?.map(a => <option key={a.id_almacen} value={a.id_almacen}>{a.tipo_almacen}</option>)}
+                      {almacenesFiltrados.map(a => <option key={a.id_almacen} value={a.id_almacen}>{a.tipo_almacen}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
@@ -495,8 +578,11 @@ export default function Solicitud() {
                   <div id="panel-crear-productos">
                     <h4 className="subsection-title"><i className="fas fa-boxes"></i> Productos Solicitados</h4>
                     <div className="qr-scan-row">
-                      <button type="button" className="btn btn-qr" onClick={() => setQrModo('producto')}>
-                        <i className="fas fa-qrcode"></i> Escanear QR de Producto
+                      <button type="button" className="btn-icon btn-icon-qr" title="Escanear QR" onClick={() => setQrModo('scan')}>
+                        <i className="fas fa-qrcode"></i>
+                      </button>
+                      <button type="button" className="btn-icon btn-icon-new" title="Registrar nuevo producto" onClick={abrirModalNuevoProd}>
+                        <i className="fas fa-plus"></i>
                       </button>
                     </div>
                     <div className="form-grid product-selector">
@@ -504,7 +590,7 @@ export default function Solicitud() {
                         <label><i className="fas fa-box"></i> Producto</label>
                         <select ref={productoCallbackRef}>
                           <option value="">Seleccione un producto</option>
-                          {datos.productos?.map(p => (
+                          {productosFiltrados.map(p => (
                             <option key={p.id_producto} value={p.id_producto}>
                               {p.nombre_producto} ({p.cantidad})
                             </option>
@@ -541,7 +627,21 @@ export default function Solicitud() {
                         <tr key={p.id_producto}>
                           <td>{p.id_producto}</td>
                           <td>{p.nombre || p.nombre_producto}</td>
-                          <td>{p.cantidad}</td>
+                          <td>
+                            {!solicitudActual ? (
+                              <div className="qty-control">
+                                <button type="button" className="btn-qty"
+                                  onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: Math.max(1, x.cantidad - 1) } : x))}>
+                                  −
+                                </button>
+                                <span>{p.cantidad}</span>
+                                <button type="button" className="btn-qty"
+                                  onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: x.cantidad + 1 } : x))}>
+                                  +
+                                </button>
+                              </div>
+                            ) : p.cantidad}
+                          </td>
                           {!solicitudActual && (
                             <td>
                               <button type="button" className="btn-remove"
@@ -590,7 +690,7 @@ export default function Solicitud() {
                             </button>
                           </div>
                         </div>
-                        {accionable && esEncargado && (
+                        {accionable && (
                           <button className="btn btn-success" onClick={handleAprobar}>
                             <i className="fas fa-check-circle"></i> Aprobar
                           </button>
@@ -612,12 +712,59 @@ export default function Solicitud() {
         </div>
       </main>
 
+      {/* Modal Nuevo Producto */}
+      {modalNuevoProd && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '540px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto' }}>
+            <h4 style={{ marginBottom: '1.5rem', fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
+              <i className="fas fa-plus-circle" style={{ color: '#640404' }}></i> Registrar Nuevo Producto
+            </h4>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Nombre *</label>
+                <input type="text" placeholder="Nombre del producto" value={formNuevoProd.nombre}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, nombre: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Descripción</label>
+                <input type="text" placeholder="Descripción opcional" value={formNuevoProd.descripcion}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, descripcion: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Categoría *</label>
+                <select value={formNuevoProd.id_categoria}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, id_categoria: e.target.value }))}>
+                  <option value="">Seleccione...</option>
+                  {catalogosModal?.categorias_list?.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Unidad *</label>
+                <select value={formNuevoProd.id_unidad}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, id_unidad: e.target.value }))}>
+                  <option value="">Seleccione...</option>
+                  {catalogosModal?.unidades_list?.map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.abreviatura})</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalNuevoProd(false)}>
+                <i className="fas fa-times"></i> Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleGuardarNuevoProd}>
+                <i className="fas fa-save"></i> Guardar producto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QR Overlay */}
       {qrModo && (
         <div className="qr-overlay" style={{ display: 'flex' }}>
           <div className="qr-box">
             <i className="fas fa-qrcode qr-icon"></i>
-            <p>{qrModo === 'personal' ? 'Apunte el lector al QR del personal' : 'Apunte el lector al QR del producto'}</p>
+            <p>Apunte el lector al código QR</p>
             <input type="text" ref={qrInputRef} autoComplete="off" placeholder="Esperando escaneo..."
               value={qrInput} onChange={e => setQrInput(e.target.value)} onKeyDown={handleQrEnter} />
             <button type="button" className="btn btn-secondary"
