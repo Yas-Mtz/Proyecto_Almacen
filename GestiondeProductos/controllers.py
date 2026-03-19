@@ -1,3 +1,4 @@
+import json
 import logging
 
 from django.shortcuts import render, redirect
@@ -110,7 +111,7 @@ def gestiondeproductos(request):
         'persona_nombre': persona_nombre,
         'user_role': user_role,
     }
-    return render(request, 'gestiondeproductos.html', context)
+    return render(request, 'gestiondeproductos.html')
 
 
 @login_required(login_url='')
@@ -130,6 +131,34 @@ def verificar_producto(request):
         return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
 
+@login_required(login_url='')
+def datos_gestion(request):
+    """API endpoint para React: catálogos e info de usuario"""
+    ultimo_producto = Producto.objects.order_by('-id_producto').first()
+    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+    try:
+        persona = Personal.objects.get(correo=request.user.username)
+        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
+    except Personal.DoesNotExist:
+        persona_nombre = request.user.username
+
+    try:
+        estatus_activo = Estatus.objects.get(nombre_estatus__icontains='activo').id_estatus
+    except Exception:
+        estatus_activo = None
+
+    return JsonResponse({
+        'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
+        'persona_nombre': persona_nombre,
+        'user_role': user_role,
+        'estatus_activo': estatus_activo,
+        'estatus_list': [{'id': e.id_estatus, 'nombre': e.nombre_estatus} for e in Estatus.objects.all()],
+        'categorias_list': [{'id': c.id_categoria, 'nombre': c.nombre_categoria} for c in CategoriaProducto.objects.all()],
+        'marcas_list': [{'id': m.id_marca, 'nombre': m.nombre_marca} for m in Marca.objects.all()],
+        'unidades_list': [{'id': u.id_unidad, 'nombre': u.nombre_unidad, 'abreviatura': u.abreviatura} for u in UnidadMedida.objects.all()],
+    })
+
+
 @csrf_exempt
 def actualizar_stock(request):
     """Controlador para actualizar stock de un producto"""
@@ -142,3 +171,47 @@ def actualizar_stock(request):
     )
     status_code = 200 if result['success'] else 400
     return JsonResponse(result, status=status_code)
+
+
+@login_required
+def crear_producto_rapido(request):
+    """Crea un producto nuevo desde el formulario de solicitudes y devuelve su ID"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    try:
+        data = json.loads(request.body)
+
+        # Estatus inactivo (producto aún no recibido)
+        estatus = Estatus.objects.filter(nombre_estatus__icontains='inactivo').first()
+        if not estatus:
+            return JsonResponse({'success': False, 'message': 'No se encontró el estatus Inactivo en el catálogo.'}, status=400)
+
+        # Marca "Sin marca" — se crea si no existe
+        marca, _ = Marca.objects.get_or_create(nombre_marca='Sin marca')
+
+        ultimo = Producto.objects.order_by('-id_producto').first()
+        next_id = (ultimo.id_producto + 1) if ultimo else 1
+
+        command = AgregarProductoCommand(
+            id_producto=next_id,
+            nombre_producto=data.get('nombre_producto', '').strip(),
+            descripcion_producto=data.get('descripcion_producto', ''),
+            cantidad=0,
+            stock_minimo=0,
+            estatus_id=estatus.id_estatus,
+            categoria_id=data.get('categoria_id'),
+            marca_id=marca.id_marca,
+            unidad_id=data.get('unidad_id'),
+            observaciones=data.get('observaciones', ''),
+        )
+        result = command.execute()
+        if result['success']:
+            return JsonResponse({
+                'success': True,
+                'id_producto': next_id,
+                'nombre_producto': data.get('nombre_producto', '').strip(),
+                'cantidad': 0,
+            })
+        return JsonResponse(result, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

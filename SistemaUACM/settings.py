@@ -62,7 +62,9 @@ ROOT_URLCONF = 'SistemaUACM.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'frontend_uacm/build')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'frontend_uacm/build-react'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -124,8 +126,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'  # Ruta base para archivos estáticos
 STATICFILES_DIRS = [
-    # Incluye la carpeta de React
-    os.path.join(BASE_DIR, 'frontend_uacm/build/static'),
+    os.path.join(BASE_DIR, 'frontend_uacm/build-react'),
 ]
 # Carpeta donde se recopilan los archivos
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

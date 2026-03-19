@@ -6,49 +6,50 @@ from SistemaUACM.models import Almacen, Rol, Personal
 from GestiondeProductos.models import Producto
 import json
 import re
-
-ESTATUS_SOL = {1: 'SOLICITADA', 2: 'APROBADA', 3: 'CANCELADA'}
-ID_ALMACEN_CENTRAL = 1
-
-
-def _es_encargado(user):
-    return user.groups.filter(name='Encargado Almacen').exists()
+import traceback
 
 
 @login_required
 def solicitud(request):
-    encargado = _es_encargado(request.user)
-    if encargado:
-        almacenes = Almacen.objects.select_related("id_talmacen").all()
-    else:
-        almacenes = Almacen.objects.select_related("id_talmacen").exclude(id_almacen=ID_ALMACEN_CENTRAL)
-    productos = Producto.objects.all()
-    roles = Rol.objects.all()
+    return render(request, 'solicitud.html')
+
+
+def _parse_sp_error(e):
+    """Extrae el mensaje de texto de un error SIGNAL de MySQL."""
+    match = re.search(r"'([^']+)'", str(e))
+    return match.group(1) if match else str(e)
+
+
+@login_required
+def datos_solicitud(request):
+    """API endpoint para React: catálogos e info de usuario"""
+    productos = Producto.objects.select_related('estatus').all()
+    roles     = Rol.objects.all()
+    almacenes = Almacen.objects.select_related("id_talmacen").all()
     user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
+
     try:
-        persona = Personal.objects.select_related('id_rol').get(correo=request.user.username)
+        persona = Personal.objects.get(correo=request.user.username)
         persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
-        nombre_completo = persona_nombre
-        if persona.apellido_materno:
-            nombre_completo += f" {persona.apellido_materno}"
-        persona_id = persona.id_personal
-        persona_id_rol = persona.id_rol.id_rol if persona.id_rol else ''
     except Personal.DoesNotExist:
         persona_nombre = request.user.username
-        nombre_completo = request.user.username
-        persona_id = ''
-        persona_id_rol = ''
 
-    return render(request, "solicitud.html", {
-        "almacenes": almacenes,
-        "productos": productos,
-        "roles": roles,
-        "es_encargado": encargado,
-        "persona_nombre": persona_nombre,
-        "user_role": user_role,
-        "persona_id": persona_id,
-        "persona_nombre_completo": nombre_completo,
-        "persona_id_rol": persona_id_rol,
+    return JsonResponse({
+        'persona_nombre': persona_nombre,
+        'user_role':      user_role,
+        'almacenes': [
+            {'id_almacen': a.id_almacen, 'tipo_almacen': a.id_talmacen.tipo_almacen}
+            for a in almacenes
+        ],
+        'productos': [
+            {'id_producto': p.id_producto, 'nombre_producto': p.nombre_producto,
+             'cantidad': p.cantidad, 'id_estatus': p.estatus.id_estatus}
+            for p in productos
+        ],
+        'roles': [
+            {'id_rol': r.id_rol, 'nombre_rol': r.nombre_rol}
+            for r in roles
+        ],
     })
 
 
@@ -60,169 +61,96 @@ def crear_solicitud(request):
     try:
         data = json.loads(request.body)
 
-        if int(data.get("id_almacen", 0)) == ID_ALMACEN_CENTRAL and not _es_encargado(request.user):
-            return JsonResponse({"error": "Solo el Encargado de Almacén puede solicitar al Almacén Central"}, status=403)
-
-        id_personal = data.get("id_personal") or None
-        observaciones = data.get("observaciones_solicitud") or None
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_crear_solicitud", [
+                data["id_almacen"],
+                data.get("id_personal") or None,
+                data.get("observaciones_solicitud") or None,
+                json.dumps(data["productos"]),
+            ])
+            id_solicitud = cursor.fetchone()[0]
 
         with connection.cursor() as cursor:
-            cursor.callproc(
-                "sp_crear_solicitud",
-                [
-                    data["id_almacen"],
-                    id_personal,
-                    observaciones,
-                    json.dumps(data["productos"])
-                ]
-            )
-            result = cursor.fetchone()
-            id_solicitud = result[0]
-
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    s.id_solicitud,
-                    ta.tipo_almacen,
-                    s.fecha_solicitud,
-                    s.observaciones_solicitud,
-                    p.id_personal,
-                    CONCAT(p.nombre_personal, ' ', p.apellido_paterno,
-                           IFNULL(CONCAT(' ', p.apellido_materno), '')) AS nombre,
-                    r.nombre_rol
-                FROM solicitud s
-                JOIN almacen a       ON a.id_almacen   = s.id_almacen
-                JOIN tipo_almacen ta ON ta.id_talmacen = a.id_talmacen
-                LEFT JOIN personal p ON p.id_personal  = s.id_personal
-                LEFT JOIN rol r      ON r.id_rol        = p.id_rol
-                WHERE s.id_solicitud = %s
-            """, [id_solicitud])
+            cursor.callproc("sp_cabecera_solicitud", [id_solicitud])
             sol = cursor.fetchone()
-
-            cursor.execute("""
-                SELECT
-                    p.id_producto,
-                    p.nombre_producto,
-                    d.cantidad
-                FROM detalle_solicitud d
-                JOIN producto p ON d.id_producto = p.id_producto
-                WHERE d.id_solicitud = %s
-            """, [id_solicitud])
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_productos_solicitud", [id_solicitud])
             productos = cursor.fetchall()
 
         return JsonResponse({
             "status": "success",
             "solicitud": {
-                "id_solicitud":  sol[0],
-                "almacen":       sol[1],
-                "fecha_creacion": sol[2].strftime("%Y-%m-%d %H:%M"),
-                "matricula":     sol[4] or "N/A",
-                "solicitante":   (sol[5] or "").strip() or "N/A",
-                "cargo":         sol[6] or "N/A",
-                "estatus":       "SOLICITADA",
+                "id_solicitud":   sol[0],
+                "id_almacen":     sol[1],
+                "fecha_creacion": sol[3].strftime("%Y-%m-%d %H:%M"),
+                "matricula":      sol[4] or "N/A",
+                "solicitante":    (sol[5] or "").strip() or "N/A",
+                "cargo":          sol[7] or "N/A",
+                "estatus":        sol[8],
                 "productos": [
                     {"id_producto": p[0], "nombre": p[1], "cantidad": p[2]}
                     for p in productos
-                ]
+                ],
             }
         })
 
     except Exception as e:
-        import traceback
         print("[ERROR crear_solicitud]", traceback.format_exc())
-        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+        return JsonResponse({"status": "error", "message": _parse_sp_error(e)}, status=400)
 
 
 @login_required
 def buscar_solicitud(request, solicitud_id):
     try:
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    s.id_solicitud,
-                    a.id_almacen,
-                    ta.tipo_almacen,
-                    s.fecha_solicitud,
-                    p.id_personal,
-                    CONCAT(p.nombre_personal, ' ', p.apellido_paterno,
-                           IFNULL(CONCAT(' ', p.apellido_materno), '')) AS nombre,
-                    p.id_rol,
-                    r.nombre_rol,
-                    s.id_estatus
-                FROM solicitud s
-                JOIN almacen a       ON a.id_almacen   = s.id_almacen
-                JOIN tipo_almacen ta ON ta.id_talmacen = a.id_talmacen
-                LEFT JOIN personal p ON p.id_personal  = s.id_personal
-                LEFT JOIN rol r      ON r.id_rol        = p.id_rol
-                WHERE s.id_solicitud = %s
-            """, [solicitud_id])
+            cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
             sol = cursor.fetchone()
 
-            if not sol:
-                return JsonResponse({"error": "Solicitud no encontrada"}, status=404)
+        if not sol:
+            return JsonResponse({"error": "Solicitud no encontrada"}, status=404)
 
-            cursor.execute("""
-                SELECT p.id_producto, p.nombre_producto, d.cantidad
-                FROM detalle_solicitud d
-                JOIN producto p ON d.id_producto = p.id_producto
-                WHERE d.id_solicitud = %s
-            """, [solicitud_id])
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_productos_solicitud", [solicitud_id])
             productos = cursor.fetchall()
 
         return JsonResponse({
             "status": "success",
             "solicitud": {
-                "id_solicitud":  sol[0],
-                "id_almacen":    sol[1],
-                "almacen":       sol[2],
+                "id_solicitud":   sol[0],
+                "id_almacen":     sol[1],
+                "almacen":        sol[2],
                 "fecha_creacion": sol[3].strftime("%Y-%m-%d %H:%M"),
-                "matricula":     sol[4] or "",
-                "solicitante":   (sol[5] or "").strip() or "N/A",
-                "id_rol":        sol[6] or "",
-                "cargo":         sol[7] or "N/A",
-                "estatus":       ESTATUS_SOL.get(sol[8], "SOLICITADA"),
+                "matricula":      sol[4] or "",
+                "solicitante":    (sol[5] or "").strip() or "N/A",
+                "id_rol":         sol[6] or "",
+                "cargo":          sol[7] or "N/A",
+                "estatus":        sol[8],
                 "productos": [
                     {"id_producto": p[0], "nombre": p[1], "cantidad": p[2]}
                     for p in productos
-                ]
+                ],
             }
         })
     except Exception as e:
-        import traceback
         print("[ERROR buscar_solicitud]", traceback.format_exc())
-        return JsonResponse({"error": str(e)}, status=400)
+        return JsonResponse({"error": _parse_sp_error(e)}, status=400)
 
 
 @login_required
 def aprobar_solicitud(request, solicitud_id):
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
-    if not _es_encargado(request.user):
-        return JsonResponse({"error": "No tienes permisos para aprobar solicitudes"}, status=403)
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT id_estatus FROM solicitud WHERE id_solicitud = %s",
-                [solicitud_id]
-            )
-            row = cursor.fetchone()
-            if not row:
-                return JsonResponse({"error": "Solicitud no encontrada"}, status=404)
-            if row[0] != 1:
-                return JsonResponse({"error": "Solo se pueden aprobar solicitudes en estado Solicitada"}, status=400)
-
-            cursor.execute(
-                "UPDATE solicitud SET id_estatus = 2 WHERE id_solicitud = %s",
-                [solicitud_id]
-            )
-
+            cursor.callproc("sp_aprobar_solicitud", [solicitud_id])
         return JsonResponse({"status": "success", "message": "Solicitud aprobada"})
 
     except Exception as e:
-        import traceback
         print("[ERROR aprobar_solicitud]", traceback.format_exc())
-        return JsonResponse({"error": str(e)}, status=400)
+        msg = _parse_sp_error(e)
+        status = 404 if 'no encontrada' in msg else 400
+        return JsonResponse({"error": msg}, status=status)
 
 
 @login_required
@@ -232,36 +160,14 @@ def cancelar_solicitud(request, solicitud_id):
 
     try:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT id_estatus FROM solicitud WHERE id_solicitud = %s",
-                [solicitud_id]
-            )
-            row = cursor.fetchone()
-            if not row:
-                return JsonResponse({"error": "Solicitud no encontrada"}, status=404)
-            if row[0] != 1:
-                return JsonResponse({"error": "La solicitud no puede cancelarse"}, status=400)
-
-            # Restaurar stock
-            cursor.execute("""
-                UPDATE producto p
-                JOIN detalle_solicitud d ON p.id_producto = d.id_producto
-                SET p.cantidad = p.cantidad + d.cantidad
-                WHERE d.id_solicitud = %s
-            """, [solicitud_id])
-
-            # Marcar como Inhabilitada (id_estatus=3)
-            cursor.execute(
-                "UPDATE solicitud SET id_estatus = 3 WHERE id_solicitud = %s",
-                [solicitud_id]
-            )
-
+            cursor.callproc("sp_cancelar_solicitud", [solicitud_id])
         return JsonResponse({"status": "success", "message": "Solicitud cancelada"})
 
     except Exception as e:
-        import traceback
         print("[ERROR cancelar_solicitud]", traceback.format_exc())
-        return JsonResponse({"error": str(e)}, status=400)
+        msg = _parse_sp_error(e)
+        status = 404 if 'no encontrada' in msg else 400
+        return JsonResponse({"error": msg}, status=status)
 
 
 @login_required
@@ -278,9 +184,9 @@ def buscar_personal_qr(request):
             nombre_completo += f" {personal.apellido_materno}"
         return JsonResponse({
             'matricula': personal.id_personal,
-            'nombre': nombre_completo,
-            'id_rol': personal.id_rol.id_rol,
-            'cargo': personal.id_rol.nombre_rol
+            'nombre':    nombre_completo,
+            'id_rol':    personal.id_rol.id_rol,
+            'cargo':     personal.id_rol.nombre_rol,
         })
     except Personal.DoesNotExist:
         return JsonResponse({'error': 'Personal no encontrado'}, status=404)

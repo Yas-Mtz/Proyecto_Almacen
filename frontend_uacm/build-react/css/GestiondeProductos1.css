@@ -1604,3 +1604,91 @@ footer p {
         height: 45px;
     }
 }
+
+/* ── Banner de stock bajo ──────────────────────────────────────────────── */
+
+.stock-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    margin-bottom: 12px;
+    border-left: 4px solid;
+    animation: fadeInDown 0.3s ease;
+}
+
+.stock-banner i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.stock-banner-rojo {
+    background: #fff0f0;
+    color: #7b1a1a;
+    border-left-color: var(--danger-color);
+}
+
+.stock-banner-amarillo {
+    background: #fffbea;
+    color: #7a5c00;
+    border-left-color: #e6a817;
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Sin permiso banner ────────────────────────────────────────────────── */
+
+.sin-permiso-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #f0f4ff;
+    border-left: 4px solid #5b7be8;
+    border-radius: 8px;
+    color: #2d3a8c;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 14px;
+}
+
+.sin-permiso-banner i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* ── Campos requeridos / validación visual ─────────────────────────────── */
+
+.form-control.is-invalid {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important;
+}
+
+.select2-wrapper-error .select2-container--default .select2-selection--single,
+.select2-wrapper-error .select2-container--default .select2-selection--multiple {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important;
+}
+
+.campo-requerido-mark {
+    color: var(--danger-color);
+    font-weight: 700;
+    margin-left: 2px;
+}
+
+.campo-requerido-msg {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--danger-color);
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-top: 4px;
+}
+}
