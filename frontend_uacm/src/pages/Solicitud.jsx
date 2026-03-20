@@ -44,8 +44,11 @@ export default function Solicitud() {
   const [qrModo, setQrModo]                   = useState(null)
   const [qrInput, setQrInput]                 = useState('')
   const [buscarId, setBuscarId]               = useState('')
-  const [exportOpen, setExportOpen]           = useState(false)
-  const [exportFormato, setExportFormato]     = useState('pdf')
+  const [checkedItems, setCheckedItems]       = useState(new Set())
+  const [alertasStock, setAlertasStock]       = useState([])
+  const [modalAlertas, setModalAlertas]       = useState(false)
+  const [campanaVisible, setCampanaVisible]   = useState(false)
+  const [desdeAlertas, setDesdeAlertas]       = useState(false)
   const [dropdownOpen, setDropdownOpen]       = useState(false)
   const [modalNuevoProd, setModalNuevoProd]   = useState(false)
   const [catalogosModal, setCatalogosModal]   = useState(null)
@@ -78,14 +81,24 @@ export default function Solicitud() {
       .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
   }, [])
 
-  // ── Cargar catálogos ───────────────────────────────────────────────────────
+  // ── Cargar catálogos + alertas de stock ───────────────────────────────────
   useEffect(() => {
     fetch('/Solicitudes/datos/')
       .then(r => r.json())
-      .then(d => {
-        setDatos(d)
-      })
+      .then(d => setDatos(d))
       .catch(() => setDatos({}))
+
+    fetch('/Solicitudes/alertas-stock/')
+      .then(r => r.json())
+      .then(d => {
+        if (d.alertas && d.alertas.length > 0) {
+          setAlertasStock(d.alertas)
+          setCampanaVisible(true)
+          const yaVisto = sessionStorage.getItem('alertas_stock_vistas')
+          if (!yaVisto) setModalAlertas(true)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // ── Foco en input QR al abrir overlay ─────────────────────────────────────
@@ -102,14 +115,6 @@ export default function Solicitud() {
     document.addEventListener('click', h)
     return () => document.removeEventListener('click', h)
   }, [dropdownOpen])
-
-  // ── Cerrar export al hacer click fuera ────────────────────────────────────
-  useEffect(() => {
-    if (!exportOpen) return
-    const h = () => setExportOpen(false)
-    document.addEventListener('click', h)
-    return () => document.removeEventListener('click', h)
-  }, [exportOpen])
 
   // ── Sincronizar React → Select2 (después de que callback ref inicializó) ───
   useEffect(() => {
@@ -199,6 +204,15 @@ export default function Solicitud() {
     if (!form.matricula.trim()) {
       window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa la matrícula del solicitante.' }); return
     }
+    if (desdeAlertas && !solicitanteEsEncargado) {
+      window.Swal.fire({ icon: 'error', title: 'Sin permiso', text: 'Solo un encargado de almacén puede generar una solicitud de reabastecimiento.' })
+        .then(() => {
+          setDesdeAlertas(false)
+          setProductos([])
+          setForm(f => ({ ...f, id_almacen: '' }))
+        })
+      return
+    }
     if (!personalValido) {
       window.Swal.fire({ icon: 'warning', title: 'Personal inválido', text: 'La matrícula no está registrada. Verifica o usa el escáner QR.' }); return
     }
@@ -232,6 +246,9 @@ export default function Solicitud() {
       if (res.ok) {
         setSolicitudActual(result.solicitud)
         setProductos(result.solicitud.productos)
+        setCheckedItems(new Set())
+        if (desdeAlertas) setCampanaVisible(false)
+        setDesdeAlertas(false)
         window.Swal.fire({ icon: 'success', title: 'Solicitud creada', text: 'Solicitud registrada correctamente.', timer: 2000, showConfirmButton: false })
       } else {
         throw new Error(result.message || result.error || rawText)
@@ -264,6 +281,49 @@ export default function Solicitud() {
       }
     } catch (err) {
       window.Swal.fire({ icon: 'error', title: 'Error', text: err.message })
+    }
+  }
+
+  // ── Generar solicitud desde alertas de stock ───────────────────────────────
+  const handleGenerarDesdeAlertas = () => {
+    sessionStorage.removeItem('alertas_stock_vistas')
+    setModalAlertas(false)
+    setDesdeAlertas(true)
+    setForm(f => ({ ...f, id_almacen: '1' }))
+    setProductos(alertasStock.map(a => ({
+      id_producto: String(a.id_producto),
+      nombre:      a.nombre_producto,
+      cantidad:    a.faltante,
+    })))
+  }
+
+  const handleDejarPendiente = () => {
+    sessionStorage.setItem('alertas_stock_vistas', '1')
+    setModalAlertas(false)
+  }
+
+  // ── Checklist de productos ─────────────────────────────────────────────────
+  const handleCheck = async (id_producto) => {
+    const nuevos = new Set(checkedItems)
+    if (nuevos.has(id_producto)) {
+      nuevos.delete(id_producto)
+      setCheckedItems(nuevos)
+      return
+    }
+    nuevos.add(id_producto)
+    setCheckedItems(nuevos)
+
+    if (nuevos.size === productos.length) {
+      const conf = await window.Swal.fire({
+        icon: 'success',
+        title: 'Todos los productos verificados',
+        text: '¿Deseas aprobar la solicitud?',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, aprobar',
+        cancelButtonText: 'No por ahora',
+        confirmButtonColor: '#28a745',
+      })
+      if (conf.isConfirmed) await handleAprobar()
     }
   }
 
@@ -436,17 +496,17 @@ export default function Solicitud() {
       setProductos(sol.productos)
       setPersonalValido(true)
       setSolicitudActual(sol)
+      setCheckedItems(new Set())
+      setDesdeAlertas(false)
     } catch {
       window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al buscar la solicitud.' })
     }
   }
 
-  // ── Exportar ───────────────────────────────────────────────────────────────
+  // ── Exportar PDF ──────────────────────────────────────────────────────────
   const handleExportar = () => {
     if (!solicitudActual) return
-    if (exportFormato === 'pdf') window.open(`${APP_URLS.exportar_pdf}${solicitudActual.id_solicitud}/`)
-    if (exportFormato === 'csv') window.open(`${APP_URLS.exportar_csv}${solicitudActual.id_solicitud}/`)
-    setExportOpen(false)
+    window.open(`${APP_URLS.exportar_pdf}${solicitudActual.id_solicitud}/`)
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -465,7 +525,32 @@ export default function Solicitud() {
               <p className="header-subtitle">Registro, consulta y control de solicitudes</p>
             </div>
           </div>
-          <div className={`user-profile${dropdownOpen ? ' active' : ''}`} id="userProfile" onClick={() => setDropdownOpen(o => !o)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {campanaVisible && (
+              <button
+                type="button"
+                onClick={() => setModalAlertas(o => !o)}
+                style={{
+                  position: 'relative', background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: '1.3rem', color: '#C9A84C',
+                  padding: '4px 8px',
+                }}
+                title={`${alertasStock.length} producto(s) con stock bajo`}
+              >
+                <i className="fas fa-bell"></i>
+                <span style={{
+                  position: 'absolute', top: 0, right: 0,
+                  background: '#dc3545', color: '#fff',
+                  borderRadius: '50%', fontSize: '0.6rem',
+                  width: '16px', height: '16px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 700, lineHeight: 1,
+                }}>
+                  {alertasStock.length}
+                </span>
+              </button>
+            )}
+            <div className={`user-profile${dropdownOpen ? ' active' : ''}`} id="userProfile" onClick={() => setDropdownOpen(o => !o)}>
             <div className="user-info">
               <span className="user-name">{datos.persona_nombre}</span>
               <span className="user-role">{datos.user_role}</span>
@@ -475,6 +560,7 @@ export default function Solicitud() {
               <a href="/home/" className="dropdown-item"><i className="fas fa-home"></i><span>Inicio</span></a>
               <a href="/login/logout/" className="dropdown-item logout"><i className="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span></a>
             </div>
+          </div>
           </div>
         </div>
       </header>
@@ -619,39 +705,53 @@ export default function Solicitud() {
                         <th>ID</th>
                         <th>Producto</th>
                         <th>Cantidad</th>
+                        {accionable && <th title="Verificado"><i className="fas fa-check-double"></i></th>}
                         {!solicitudActual && <th></th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {productos.map(p => (
-                        <tr key={p.id_producto}>
-                          <td>{p.id_producto}</td>
-                          <td>{p.nombre || p.nombre_producto}</td>
-                          <td>
-                            {!solicitudActual ? (
-                              <div className="qty-control">
-                                <button type="button" className="btn-qty"
-                                  onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: Math.max(1, x.cantidad - 1) } : x))}>
-                                  −
-                                </button>
-                                <span>{p.cantidad}</span>
-                                <button type="button" className="btn-qty"
-                                  onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: x.cantidad + 1 } : x))}>
-                                  +
-                                </button>
-                              </div>
-                            ) : p.cantidad}
-                          </td>
-                          {!solicitudActual && (
+                      {productos.map(p => {
+                        const checked = checkedItems.has(p.id_producto)
+                        return (
+                          <tr key={p.id_producto} style={checked ? { background: '#f0faf0' } : {}}>
+                            <td>{p.id_producto}</td>
+                            <td>{p.nombre || p.nombre_producto}</td>
                             <td>
-                              <button type="button" className="btn-remove"
-                                onClick={() => setProductos(prev => prev.filter(x => x.id_producto !== p.id_producto))}>
-                                <i className="fas fa-trash"></i>
-                              </button>
+                              {!solicitudActual ? (
+                                <div className="qty-control">
+                                  <button type="button" className="btn-qty"
+                                    onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: Math.max(1, x.cantidad - 1) } : x))}>
+                                    −
+                                  </button>
+                                  <span>{p.cantidad}</span>
+                                  <button type="button" className="btn-qty"
+                                    onClick={() => setProductos(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad: x.cantidad + 1 } : x))}>
+                                    +
+                                  </button>
+                                </div>
+                              ) : p.cantidad}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            {accionable && (
+                              <td style={{ textAlign: 'center' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => handleCheck(p.id_producto)}
+                                  style={{ width: '18px', height: '18px', accentColor: '#28a745', cursor: 'pointer' }}
+                                />
+                              </td>
+                            )}
+                            {!solicitudActual && (
+                              <td>
+                                <button type="button" className="btn-remove"
+                                  onClick={() => setProductos(prev => prev.filter(x => x.id_producto !== p.id_producto))}>
+                                  <i className="fas fa-trash"></i>
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -670,26 +770,9 @@ export default function Solicitud() {
                         {solicitudActual.estatus}
                       </span>
                       <div className="confirm-actions">
-                        <div className={`export-wrapper${exportOpen ? ' active' : ''}`}
-                          onClick={e => e.stopPropagation()}>
-                          <button type="button" className="btn-export"
-                            onClick={() => setExportOpen(o => !o)}>
-                            <i className="fas fa-download"></i> Exportar
-                          </button>
-                          <div className="export-options">
-                            <label>
-                              <input type="radio" name="export-format" value="pdf"
-                                checked={exportFormato === 'pdf'} onChange={() => setExportFormato('pdf')} /> PDF
-                            </label>
-                            <label>
-                              <input type="radio" name="export-format" value="csv"
-                                checked={exportFormato === 'csv'} onChange={() => setExportFormato('csv')} /> CSV
-                            </label>
-                            <button className="btn-confirm-export" onClick={handleExportar}>
-                              <i className="fas fa-download"></i> Descargar
-                            </button>
-                          </div>
-                        </div>
+                        <button type="button" className="btn-export" onClick={handleExportar}>
+                          <i className="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
                         {accionable && (
                           <button className="btn btn-success" onClick={handleAprobar}>
                             <i className="fas fa-check-circle"></i> Aprobar
@@ -753,6 +836,59 @@ export default function Solicitud() {
               </button>
               <button type="button" className="btn btn-primary" onClick={handleGuardarNuevoProd}>
                 <i className="fas fa-save"></i> Guardar producto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal alertas de stock bajo */}
+      {modalAlertas && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'center', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '620px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+
+            {/* Encabezado fijo */}
+            <h4 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(220,53,69,.2)', color: '#dc3545', flexShrink: 0 }}>
+              <i className="fas fa-exclamation-triangle"></i> Productos con stock bajo
+              <span style={{ marginLeft: 'auto', background: '#dc3545', color: '#fff', borderRadius: '999px', fontSize: '0.75rem', padding: '2px 10px', fontWeight: 700 }}>
+                {alertasStock.length} producto{alertasStock.length !== 1 ? 's' : ''}
+              </span>
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.75rem', flexShrink: 0 }}>
+              Los siguientes productos activos están por debajo de su stock mínimo:
+            </p>
+
+            {/* Tabla con scroll */}
+            <div style={{ overflowY: 'auto', flex: 1, marginBottom: '1rem', border: '1px solid #e5e5e5', borderRadius: '6px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                  <tr style={{ background: '#6B0F1A', color: '#fff' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Producto</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Actual</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Mínimo</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Faltante</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alertasStock.map((a, i) => (
+                    <tr key={a.id_producto} style={{ background: i % 2 === 0 ? '#fff' : '#fdf3f3' }}>
+                      <td style={{ padding: '7px 12px' }}>{a.nombre_producto}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', color: '#dc3545', fontWeight: 700 }}>{a.cantidad}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center' }}>{a.stock_minimo}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', color: '#28a745', fontWeight: 700 }}>+{a.faltante}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Acciones fijas */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexShrink: 0 }}>
+              <button type="button" className="btn btn-secondary" onClick={handleDejarPendiente}>
+                <i className="fas fa-bell"></i> Dejar pendiente
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleGenerarDesdeAlertas}>
+                <i className="fas fa-file-alt"></i> Generar solicitud
               </button>
             </div>
           </div>

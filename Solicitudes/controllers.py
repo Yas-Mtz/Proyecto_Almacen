@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.db import connection
 from django.contrib.auth.decorators import login_required
@@ -171,6 +171,26 @@ def cancelar_solicitud(request, solicitud_id):
 
 
 @login_required
+def alertas_stock(request):
+    """Devuelve productos activos con cantidad < stock_minimo"""
+    productos = Producto.objects.select_related('estatus').filter(
+        estatus__id_estatus=1,       # solo Activo
+        stock_minimo__gt=0,
+    )
+    bajos = [
+        {
+            'id_producto':    p.id_producto,
+            'nombre_producto': p.nombre_producto,
+            'cantidad':       p.cantidad,
+            'stock_minimo':   p.stock_minimo,
+            'faltante':       p.stock_minimo - p.cantidad,
+        }
+        for p in productos if p.cantidad < p.stock_minimo
+    ]
+    return JsonResponse({'alertas': bajos})
+
+
+@login_required
 def buscar_personal_qr(request):
     qr_data = request.GET.get('qr_data', '').strip()
     numeros = re.findall(r'\d+', qr_data)
@@ -190,3 +210,20 @@ def buscar_personal_qr(request):
         })
     except Personal.DoesNotExist:
         return JsonResponse({'error': 'Personal no encontrado'}, status=404)
+
+@login_required
+def exportar_pdf(request, solicitud_id):
+    from .pdf import generar_pdf_solicitud
+    try:
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
+            sol = cursor.fetchone()
+        if not sol:
+            return HttpResponse("Solicitud no encontrada", status=404)
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_productos_solicitud", [solicitud_id])
+            productos = cursor.fetchall()
+    except Exception as e:
+        return HttpResponse(f"Error: {e}", status=400)
+
+    return generar_pdf_solicitud(sol, productos)

@@ -8,12 +8,13 @@ CREATE PROCEDURE sp_crear_solicitud(
     IN p_productos     JSON
 )
 BEGIN
-    DECLARE v_id_solicitud INT;
-    DECLARE v_index        INT DEFAULT 0;
-    DECLARE v_total        INT DEFAULT 0;
-    DECLARE v_id_producto  INT;
-    DECLARE v_cantidad     INT;
-    DECLARE v_stock        INT;
+    DECLARE v_id_solicitud  INT;
+    DECLARE v_index         INT DEFAULT 0;
+    DECLARE v_total         INT DEFAULT 0;
+    DECLARE v_id_producto   INT;
+    DECLARE v_cantidad      INT;
+    DECLARE v_stock         INT;
+    DECLARE v_estatus_prod  INT;
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -33,16 +34,23 @@ BEGIN
         SET v_id_producto = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos, CONCAT('$[', v_index, '].id_producto'))) AS UNSIGNED);
         SET v_cantidad    = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos, CONCAT('$[', v_index, '].cantidad')))    AS UNSIGNED);
 
-        SELECT cantidad INTO v_stock FROM producto WHERE id_producto = v_id_producto FOR UPDATE;
+        SELECT cantidad, id_estatus
+        INTO v_stock, v_estatus_prod
+        FROM producto
+        WHERE id_producto = v_id_producto
+        FOR UPDATE;
 
-        IF v_stock < v_cantidad THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock insuficiente';
+        -- Solo validar y descontar stock para productos activos (no Inactivos = id_estatus 2)
+        IF v_estatus_prod != 2 THEN
+            IF v_stock < v_cantidad THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock insuficiente';
+            END IF;
+
+            UPDATE producto SET cantidad = cantidad - v_cantidad WHERE id_producto = v_id_producto;
         END IF;
 
         INSERT INTO detalle_solicitud (id_solicitud, id_producto, cantidad)
         VALUES (v_id_solicitud, v_id_producto, v_cantidad);
-
-        UPDATE producto SET cantidad = cantidad - v_cantidad WHERE id_producto = v_id_producto;
 
         SET v_index = v_index + 1;
     END WHILE;
@@ -162,10 +170,12 @@ BEGIN
 
     START TRANSACTION;
 
+    -- Solo restaurar stock de productos activos (no Inactivos = id_estatus 2)
     UPDATE producto p
     JOIN detalle_solicitud d ON p.id_producto = d.id_producto
     SET p.cantidad = p.cantidad + d.cantidad
-    WHERE d.id_solicitud = p_id_solicitud;
+    WHERE d.id_solicitud = p_id_solicitud
+      AND p.id_estatus != 2;
 
     UPDATE solicitud SET id_estatus = 3 WHERE id_solicitud = p_id_solicitud;
 
