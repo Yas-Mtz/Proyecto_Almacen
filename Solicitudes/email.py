@@ -21,6 +21,8 @@ def enviar_correo_solicitud(sol, productos, pdf_bytes):
     fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M")
 
     destinatario  = settings.EMAIL_ALMACEN_CENTRAL
+    if not destinatario:
+        raise ValueError("EMAIL_ALMACEN_CENTRAL no está configurado en .env")
     remitente     = settings.EMAIL_FROM
     copia         = [correo_encargado] if correo_encargado else []
 
