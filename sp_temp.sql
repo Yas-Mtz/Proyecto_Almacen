@@ -40,8 +40,10 @@ BEGIN
         WHERE id_producto = v_id_producto
         FOR UPDATE;
 
-        -- Solo validar y descontar stock para productos activos (no Inactivos = id_estatus 2)
-        IF v_estatus_prod != 2 THEN
+        -- Omitir validación y descuento si:
+        --   a) producto Inactivo (id_estatus = 2), o
+        --   b) solicitud de reabastecimiento al almacén central (id_almacen = 1)
+        IF v_estatus_prod != 2 AND p_id_almacen != 1 THEN
             IF v_stock < v_cantidad THEN
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Stock insuficiente';
             END IF;

@@ -120,6 +120,16 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Email
+EMAIL_BACKEND         = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST            = env('EMAIL_HOST',            default='sandbox.smtp.mailtrap.io')
+EMAIL_PORT            = env.int('EMAIL_PORT',         default=2525)
+EMAIL_HOST_USER       = env('EMAIL_HOST_USER',        default='')
+EMAIL_HOST_PASSWORD   = env('EMAIL_HOST_PASSWORD',    default='')
+EMAIL_USE_TLS         = env.bool('EMAIL_USE_TLS',     default=True)
+EMAIL_FROM            = env('EMAIL_FROM',             default='sistema@uacm.edu.mx')
+EMAIL_ALMACEN_CENTRAL = env('EMAIL_ALMACEN_CENTRAL',  default='')
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 

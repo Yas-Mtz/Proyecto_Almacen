@@ -77,6 +77,22 @@ def crear_solicitud(request):
             cursor.callproc("sp_productos_solicitud", [id_solicitud])
             productos = cursor.fetchall()
 
+        # ── Enviar correo si es encargado y destino es almacén central ──────
+        es_encargado  = 'encargado' in (sol[7] or '').lower()
+        es_central    = str(sol[1]) == '1'
+        if es_encargado and es_central:
+            try:
+                from .pdf import generar_pdf_solicitud
+                from .email import enviar_correo_solicitud
+                correo_encargado = request.user.username  # el username es el correo
+                # Construir tupla extendida con correo para email.py
+                sol_con_correo = sol + (correo_encargado,)
+                pdf_response = generar_pdf_solicitud(sol, productos)
+                pdf_bytes = pdf_response.content
+                enviar_correo_solicitud(sol_con_correo, productos, pdf_bytes)
+            except Exception:
+                print("[WARN] No se pudo enviar el correo:", traceback.format_exc())
+
         return JsonResponse({
             "status": "success",
             "solicitud": {
