@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt, csrf_protect
+from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 from django.contrib.auth import logout as django_logout
 from django.views.decorators.clickjacking import xframe_options_deny
 from django.conf import settings
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 proxy_auth = ProxyAutenticacion()
 
 
+@ensure_csrf_cookie
 @csrf_protect
 @xframe_options_deny
 def login(request):

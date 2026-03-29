@@ -18,15 +18,17 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+env = environ.Env()
+environ.Env.read_env()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&c8@n#@t_9kl4@p23b53hrwp^&h6ritkhbrrf^2931_p(2ok+6'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = ['*']  # vista pública
 
@@ -79,9 +81,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'SistemaUACM.wsgi.application'
 
-
-env = environ.Env()
-environ.Env.read_env()  # Lee el archivo .env
 
 # Obtener la URL de la base de datos
 DATABASES = {
