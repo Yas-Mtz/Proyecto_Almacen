@@ -90,7 +90,7 @@ def generar_pdf_solicitud(sol, productos):
     solicitante = (sol[5] or "").strip() or "N/A"
     cargo       = sol[7] or "N/A"
     estatus     = sol[8] or "SOLICITADA"
-    obs         = "Sin observaciones"
+    obs         = (sol[9] or "").strip() or "Sin observaciones"
 
     fecha_str = fecha_dt.strftime("%d/%m/%Y")
     hora_str  = fecha_dt.strftime("%H:%M")
