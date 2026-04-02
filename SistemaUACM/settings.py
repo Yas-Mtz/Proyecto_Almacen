@@ -153,4 +153,4 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR)  # ahora MEDIA_ROOT apunta al proyecto completo
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -159,7 +159,7 @@ def datos_gestion(request):
     })
 
 
-@csrf_exempt
+@login_required
 def actualizar_stock(request):
     """Controlador para actualizar stock de un producto"""
     if request.method != 'POST':

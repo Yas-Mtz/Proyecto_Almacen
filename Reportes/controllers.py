@@ -34,35 +34,37 @@ def datos_reportes(request):
 @csrf_exempt
 def reporte_solicitudes(request):
     if request.method == 'POST':
-        fecha_inicio = request.POST.get('fecha_inicio')
-        fecha_fin = request.POST.get('fecha_fin')
+        try:
+            fecha_inicio = request.POST.get('fecha_inicio')
+            fecha_fin = request.POST.get('fecha_fin')
 
-        # Convertir las fechas a formato datetime
-        fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-        fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            if not fecha_inicio or not fecha_fin:
+                return JsonResponse({'error': 'Las fechas son obligatorias'}, status=400)
 
-        # Llamar al procedimiento almacenado para el reporte de solicitudes
-        with connection.cursor() as cursor:
-            cursor.callproc('GenerarReporteSolicitudes', [fecha_inicio, fecha_fin])
-            results = cursor.fetchall()
+            fecha_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            fecha_fin = datetime.strptime(fecha_fin, '%Y-%m-%d')
 
-        # Imprimir los resultados en la terminal para depurar
-        print("Resultados de reporte_solicitudes:", results)
+            with connection.cursor() as cursor:
+                cursor.callproc('GenerarReporteSolicitudes', [fecha_inicio, fecha_fin])
+                results = cursor.fetchall()
 
-        # Convertir los resultados a una lista de diccionarios (si es necesario)
-        productos = []
-        for result in results:
-            productos.append({
-                'id_solicitud': result[0],
-                'almacen_direccion': result[1],
-                'nom_articulo': result[2],
-                'cantidad': result[3],
-                'nombre_persona': result[4],
-                'fecha_sol': result[5].strftime('%Y-%m-%d'),
-            })
+            productos = []
+            for result in results:
+                productos.append({
+                    'id_solicitud': result[0],
+                    'almacen_direccion': result[1],
+                    'nom_articulo': result[2],
+                    'cantidad': result[3],
+                    'nombre_persona': result[4],
+                    'fecha_sol': result[5].strftime('%Y-%m-%d'),
+                })
 
-        # Retornar los datos como JSON para que el frontend los consuma
-        return JsonResponse({'productos': productos})
+            return JsonResponse({'productos': productos})
+
+        except ValueError:
+            return JsonResponse({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al generar el reporte: {str(e)}'}, status=500)
 
 @login_required
 def inventario(request):
