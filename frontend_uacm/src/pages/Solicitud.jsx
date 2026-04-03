@@ -11,13 +11,13 @@ function getCookie(name) {
 }
 
 const APP_URLS = {
-  crear_solicitud:    '/Solicitudes/crear/',
-  buscar_personal_qr: '/Solicitudes/buscar-personal/',
-  cancelar_solicitud: '/Solicitudes/cancelar/',
-  aprobar_solicitud:  '/Solicitudes/aprobar/',
-  buscar_solicitud:   '/Solicitudes/buscar/',
-  exportar_pdf:       '/Solicitudes/exportar/pdf/',
-  exportar_csv:       '/Solicitudes/exportar/csv/',
+  crear_solicitud:      '/Solicitudes/crear/',
+  buscar_personal_qr:   '/Solicitudes/buscar-personal/',
+  cancelar_solicitud:   '/Solicitudes/cancelar/',
+  aprobar_solicitud:    '/Solicitudes/aprobar/',
+  buscar_solicitud:     '/Solicitudes/buscar/',
+  exportar_pdf:         '/Solicitudes/exportar/pdf/',
+registrar_recepcion:  '/Solicitudes/recepcion/',
 }
 
 const statusMap = {
@@ -27,10 +27,10 @@ const statusMap = {
 }
 
 const clsMap = {
-  SOLICITADA: 'status-solicitado',
-  APROBADA:   'status-aprobado',
-  CANCELADA:  'status-cancelado',
-  COMPLETADA: 'status-completado',
+  SOLICITADA:      'status-solicitado',
+  APROBADA:        'status-aprobado',
+  CANCELADA:       'status-cancelado',
+  ENTREGA_PARCIAL: 'status-parcial',
 }
 
 export default function Solicitud() {
@@ -52,6 +52,8 @@ export default function Solicitud() {
   const [dropdownOpen, setDropdownOpen]       = useState(false)
   const [modalNuevoProd, setModalNuevoProd]   = useState(false)
   const [catalogosModal, setCatalogosModal]   = useState(null)
+  const [modalRecepcion, setModalRecepcion]   = useState(false)
+  const [recepcionItems, setRecepcionItems]   = useState([])
   const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
 
   const qrInputRef  = useRef(null)
@@ -159,11 +161,11 @@ export default function Solicitud() {
     : (datos?.almacenes || []).filter(a => a.tipo_almacen.toLowerCase().includes('cuautepec'))
 
   // Filtrar productos según almacén destino:
-  // Central (id=1) → todos; Cuautepec u otro → excluir Inactivo (2) y Agotado (3)
-  const ESTATUS_EXCLUIDOS_CUAUTEPEC = [2, 3]
-  const productosFiltrados = String(form.id_almacen) === '1'
+  // Central → todos; otro → solo productos con estatus Activo
+  const almacenEsCentral   = datos?.ids_almacen_central?.includes(parseInt(form.id_almacen)) ?? false
+  const productosFiltrados = almacenEsCentral
     ? (datos?.productos || [])
-    : (datos?.productos || []).filter(p => !ESTATUS_EXCLUIDOS_CUAUTEPEC.includes(p.id_estatus))
+    : (datos?.productos || []).filter(p => p.id_estatus === datos?.id_estatus_activo)
 
   // ── Reinicializar Select2 de almacén cuando cambian las opciones ───────────
   useEffect(() => {
@@ -301,7 +303,8 @@ export default function Solicitud() {
     sessionStorage.removeItem('alertas_stock_vistas')
     setModalAlertas(false)
     setDesdeAlertas(true)
-    setForm(f => ({ ...f, id_almacen: '1' }))
+    const idCentral = datos?.ids_almacen_central?.[0]
+    setForm(f => ({ ...f, id_almacen: idCentral ? String(idCentral) : '' }))
     setProductos(alertasStock.map(a => ({
       id_producto: String(a.id_producto),
       nombre:      a.nombre_producto,
@@ -366,6 +369,57 @@ export default function Solicitud() {
       }
     } catch {
       window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al aprobar la solicitud.' })
+    }
+  }
+
+  // ── Registrar recepción ────────────────────────────────────────────────────
+  const abrirModalRecepcion = () => {
+    if (!solicitudActual) return
+    setRecepcionItems(
+      solicitudActual.productos.map(p => ({
+        id_producto:      p.id_producto,
+        nombre:           p.nombre,
+        cantidad:         p.cantidad,
+        cantidad_recibida: p.cantidad,
+      }))
+    )
+    setModalRecepcion(true)
+  }
+
+  const handleConfirmarRecepcion = async () => {
+    const hayError = recepcionItems.some(p => p.cantidad_recibida < 0 || p.cantidad_recibida > p.cantidad)
+    if (hayError) {
+      window.Swal.fire({ icon: 'warning', title: 'Cantidad inválida', text: 'La cantidad recibida no puede ser mayor a la solicitada ni negativa.' })
+      return
+    }
+    try {
+      const res = await fetch(`${APP_URLS.registrar_recepcion}${solicitudActual.id_solicitud}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productos: recepcionItems.map(p => ({ id_producto: p.id_producto, cantidad_recibida: p.cantidad_recibida })) }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        const hayParcial = recepcionItems.some(p => p.cantidad_recibida < p.cantidad)
+        const nuevoEstatus = hayParcial ? 'ENTREGA_PARCIAL' : 'APROBADA'
+        setSolicitudActual(s => ({ ...s, estatus: nuevoEstatus }))
+        setModalRecepcion(false)
+        const idNueva = result.id_solicitud_nueva
+        window.Swal.fire({
+          icon: 'success',
+          title: hayParcial ? 'Entrega parcial registrada' : 'Entrega completa registrada',
+          html: hayParcial
+            ? `Algunos productos no llegaron en su totalidad.<br><br>Se generó la solicitud de seguimiento <b>#${idNueva}</b> y se notificó a almacén central.`
+            : 'Todos los productos fueron recibidos correctamente.',
+          timer: hayParcial ? 0 : 2500,
+          showConfirmButton: hayParcial,
+          confirmButtonText: 'Aceptar',
+        })
+      } else {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo registrar la recepción.' })
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al registrar la recepción.' })
     }
   }
 
@@ -811,6 +865,11 @@ export default function Solicitud() {
                             <i className="fas fa-times-circle"></i> Cancelar
                           </button>
                         )}
+                        {solicitudActual?.estatus === 'APROBADA' && (
+                          <button type="button" className="btn btn-primary" onClick={abrirModalRecepcion}>
+                            <i className="fas fa-clipboard-check"></i> Registrar recepción
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -917,6 +976,60 @@ export default function Solicitud() {
               </button>
               <button type="button" className="btn btn-primary" onClick={handleGenerarDesdeAlertas}>
                 <i className="fas fa-file-alt"></i> Generar solicitud
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Recepción */}
+      {modalRecepcion && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '580px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto' }}>
+            <h4 style={{ marginBottom: '1.25rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
+              <i className="fas fa-clipboard-check" style={{ color: '#640404' }}></i> Registrar Recepción
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: '#555', marginBottom: '1rem' }}>
+              Indica la cantidad que realmente se recibió de cada producto. Si es menor a lo solicitado se registrará como entrega parcial.
+            </p>
+            <div style={{ overflowY: 'auto', maxHeight: '50vh', border: '1px solid #e5e5e5', borderRadius: '6px', marginBottom: '1.25rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ background: '#6B0F1A', color: '#fff' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Producto</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Solicitado</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Recibido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recepcionItems.map((p, i) => (
+                    <tr key={p.id_producto} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '7px 12px' }}>{p.nombre}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', color: '#555' }}>{p.cantidad}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={p.cantidad}
+                          value={p.cantidad_recibida}
+                          onChange={e => {
+                            const val = Math.min(p.cantidad, Math.max(0, parseInt(e.target.value) || 0))
+                            setRecepcionItems(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad_recibida: val } : x))
+                          }}
+                          style={{ width: '70px', textAlign: 'center', padding: '4px 6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalRecepcion(false)}>
+                <i className="fas fa-times"></i> Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleConfirmarRecepcion}>
+                <i className="fas fa-check"></i> Confirmar recepción
               </button>
             </div>
           </div>

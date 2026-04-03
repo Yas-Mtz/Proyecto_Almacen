@@ -2,7 +2,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.db import connection
 from django.contrib.auth.decorators import login_required
-from SistemaUACM.models import Almacen, Rol, Personal
+from SistemaUACM.models import Almacen, Rol, Personal, TipoAlmacen, Estatus
 from GestiondeProductos.models import Producto
 import json
 import re
@@ -20,6 +20,20 @@ def _parse_sp_error(e):
     return match.group(1) if match else str(e)
 
 
+def _ids_almacen_central():
+    """Devuelve la lista de id_almacen cuyo tipo_almacen es Central."""
+    tipos = TipoAlmacen.objects.filter(tipo_almacen__icontains='central')
+    return list(Almacen.objects.filter(id_talmacen__in=tipos).values_list('id_almacen', flat=True))
+
+
+def _id_estatus_activo():
+    """Devuelve el id_estatus del estatus de producto 'Activo'."""
+    try:
+        return Estatus.objects.get(nombre_estatus='Activo').id_estatus
+    except Estatus.DoesNotExist:
+        return None
+
+
 @login_required
 def datos_solicitud(request):
     """API endpoint para React: catálogos e info de usuario"""
@@ -35,8 +49,10 @@ def datos_solicitud(request):
         persona_nombre = request.user.username
 
     return JsonResponse({
-        'persona_nombre': persona_nombre,
-        'user_role':      user_role,
+        'persona_nombre':    persona_nombre,
+        'user_role':         user_role,
+        'id_estatus_activo': _id_estatus_activo(),
+        'ids_almacen_central': _ids_almacen_central(),
         'almacenes': [
             {'id_almacen': a.id_almacen, 'tipo_almacen': a.id_talmacen.tipo_almacen}
             for a in almacenes
@@ -79,7 +95,7 @@ def crear_solicitud(request):
 
         # ── Enviar correo si es encargado y destino es almacén central ──────
         es_encargado  = 'encargado' in (sol[7] or '').lower()
-        es_central    = str(sol[1]) == '1'
+        es_central    = sol[1] in _ids_almacen_central()
         if es_encargado and es_central:
             try:
                 from .pdf import generar_pdf_solicitud
@@ -207,10 +223,60 @@ def cancelar_solicitud(request, solicitud_id):
 
 
 @login_required
+def registrar_recepcion(request, solicitud_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+        productos = data.get("productos", [])
+        if not productos:
+            return JsonResponse({"error": "Se requieren los productos recibidos"}, status=400)
+
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_registrar_recepcion", [solicitud_id, json.dumps(productos)])
+            row = cursor.fetchone()
+
+        id_solicitud_nueva = row[0] if row else 0
+
+        # Si hubo entrega parcial, enviar correo a central
+        if id_solicitud_nueva:
+            try:
+                from .email import enviar_correo_entrega_parcial
+                with connection.cursor() as cursor:
+                    cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
+                    sol = cursor.fetchone()
+                with connection.cursor() as cursor:
+                    cursor.callproc("sp_productos_solicitud", [solicitud_id])
+                    prods_orig = cursor.fetchall()
+
+                # Calcular faltantes: (id, nombre, solicitado, recibido, faltante)
+                recibidos = {str(p['id_producto']): p['cantidad_recibida'] for p in productos}
+                faltantes = [
+                    (p[0], p[1], p[2], recibidos.get(str(p[0]), 0), p[2] - recibidos.get(str(p[0]), 0))
+                    for p in prods_orig
+                    if p[2] - recibidos.get(str(p[0]), 0) > 0
+                ]
+                correo_encargado = request.user.username
+                enviar_correo_entrega_parcial(sol, faltantes, id_solicitud_nueva, correo_encargado)
+            except Exception:
+                print("[WARN] No se pudo enviar correo de entrega parcial:", traceback.format_exc())
+
+        return JsonResponse({
+            "status": "success",
+            "message": "Recepción registrada",
+            "id_solicitud_nueva": id_solicitud_nueva,
+        })
+    except Exception as e:
+        print("[ERROR registrar_recepcion]", traceback.format_exc())
+        return JsonResponse({"error": _parse_sp_error(e)}, status=400)
+
+
+@login_required
 def alertas_stock(request):
     """Devuelve productos activos con cantidad < stock_minimo"""
+    id_activo = _id_estatus_activo()
     productos = Producto.objects.select_related('estatus').filter(
-        estatus__id_estatus=1,       # solo Activo
+        estatus__id_estatus=id_activo,
         stock_minimo__gt=0,
     )
     bajos = [

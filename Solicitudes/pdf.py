@@ -22,10 +22,10 @@ BLANCO = colors.white
 NEGRO  = colors.HexColor('#1a1a1a')
 
 STATUS_COLOR = {
-    'SOLICITADA': colors.HexColor('#C9A84C'),
-    'APROBADA':   colors.HexColor('#28a745'),
-    'CANCELADA':  colors.HexColor('#dc3545'),
-    'COMPLETADA': colors.HexColor('#17a2b8'),
+    'SOLICITADA':     colors.HexColor('#C9A84C'),
+    'APROBADA':       colors.HexColor('#28a745'),
+    'CANCELADA':      colors.HexColor('#dc3545'),
+    'ENTREGA_PARCIAL': colors.HexColor('#fd7e14'),
 }
 
 PAGE_W, PAGE_H = letter
@@ -53,16 +53,6 @@ def _make_circular_logo(path, size=120):
     buf.seek(0)
     return buf
 
-
-class _SentinelUltimaPagina(Flowable):
-    """Flowable de tamaño cero que registra en qué página fue dibujado."""
-    def __init__(self, flag):
-        super().__init__()
-        self.flag = flag
-        self.width = self.height = 0
-
-    def draw(self):
-        self.flag[0] = self.canv.getPageNumber()
 
 
 def _decorate_page(folio_ref, fecha_str, gest_info=None, ultima_pag_flag=None):
@@ -160,11 +150,11 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
     s_th    = _sty('th',    fontSize=9,  fontName='Helvetica-Bold',    textColor=BLANCO, leading=12)
     s_td    = _sty('td',    fontSize=9,  fontName='Helvetica',         textColor=NEGRO,  leading=12)
     s_td_r  = _sty('tdr',  fontSize=9,  fontName='Helvetica-Bold',    textColor=ROJO,   alignment=TA_RIGHT, leading=12)
-    s_sign  = _sty('sgn',  fontSize=9,  fontName='Helvetica',         textColor=NEGRO,  alignment=TA_CENTER, leading=13)
     s_tot   = _sty('tot',  fontSize=9,  fontName='Helvetica-Bold',    textColor=NEGRO,  alignment=TA_RIGHT,  leading=12)
 
     # Estilos para columna de estado en tabla de productos
     _con_estado = estatus in ('APROBADA', 'CANCELADA')
+    _parcial    = estatus == 'ENTREGA_PARCIAL'
     if _con_estado:
         _icono    = '✓' if estatus == 'APROBADA' else '✗'
         _col_icon = colors.HexColor('#1a7a3c') if estatus == 'APROBADA' else colors.HexColor('#dc3545')
@@ -173,6 +163,11 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
                           textColor=BLANCO, leading=12, alignment=TA_CENTER)
         s_td_icon = _sty('td_ic', fontSize=12, fontName='Helvetica-Bold',
                           textColor=_col_icon, leading=14, alignment=TA_CENTER)
+    if _parcial:
+        s_td_parcial = _sty('td_parc', fontSize=9, fontName='Helvetica-Bold',
+                             textColor=colors.HexColor('#dc3545'), leading=12, alignment=TA_CENTER)
+        s_td_recibido = _sty('td_rec', fontSize=9, fontName='Helvetica-Bold',
+                              textColor=colors.HexColor('#1a7a3c'), leading=12, alignment=TA_CENTER)
 
     def dato(label, valor, italic=False):
         return [Paragraph(label, s_label), Paragraph(str(valor), s_obs if italic else s_val)]
@@ -249,34 +244,53 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
     story.append(Paragraph("Productos Solicitados", s_sec))
     story.append(Spacer(1, 6))
 
-    _hdrs = ["#", "Clave", "Descripción del Artículo", "Cantidad"]
-    _cols = [1.2*cm, 2*cm, None, 2.2*cm]
-    if _con_estado:
-        _hdrs.append(_icono)
-        _cols.append(1.2*cm)
+    if _parcial:
+        _hdrs = ["#", "Clave", "Descripción del Artículo", "Solicitado", "Recibido"]
+        _cols = [1.2*cm, 2*cm, None, 2.2*cm, 2.2*cm]
+    else:
+        _hdrs = ["#", "Clave", "Descripción del Artículo", "Cantidad"]
+        _cols = [1.2*cm, 2*cm, None, 2.2*cm]
+        if _con_estado:
+            _hdrs.append(_icono)
+            _cols.append(1.2*cm)
 
     prod_data = [[Paragraph(h, s_th) for h in _hdrs]]
     total_items = 0
+    _filas_parciales = []  # índices de filas con entrega parcial (para resaltar)
     for i, p in enumerate(productos, 1):
         total_items += p[2]
+        cant_rec = p[3] if len(p) > 3 else None
         fila = [
             Paragraph(f"{i:02d}", s_td),
             Paragraph(str(p[0]), s_td),
             Paragraph(str(p[1]), s_td),
             Paragraph(str(p[2]), s_td_r),
         ]
-        if _con_estado:
+        if _parcial:
+            es_parcial_fila = cant_rec is not None and cant_rec < p[2]
+            if es_parcial_fila:
+                _filas_parciales.append(i)  # fila i+1 en prod_data (header es 0)
+            fila[3] = Paragraph(str(p[2]), s_td_parcial if es_parcial_fila else s_td_r)
+            fila.append(Paragraph(str(cant_rec if cant_rec is not None else '—'), s_td_recibido))
+        elif _con_estado:
             fila.append(Paragraph(_icono, s_td_icon))
         prod_data.append(fila)
 
-    fila_tot = [
-        Paragraph("", s_td),
-        Paragraph("", s_td),
-        Paragraph("Total de artículos solicitados", s_tot),
-        Paragraph(str(total_items), s_td_r),
-    ]
-    if _con_estado:
-        fila_tot.append(Paragraph("", s_td))
+    if _parcial:
+        fila_tot = [
+            Paragraph("", s_td), Paragraph("", s_td),
+            Paragraph("Total de artículos solicitados", s_tot),
+            Paragraph(str(total_items), s_td_r),
+            Paragraph("", s_td),
+        ]
+    else:
+        fila_tot = [
+            Paragraph("", s_td), Paragraph("", s_td),
+            Paragraph("Total de artículos solicitados", s_tot),
+            Paragraph(str(total_items), s_td_r),
+        ]
+        if _con_estado:
+            fila_tot.append(Paragraph("", s_td))
     prod_data.append(fila_tot)
 
     n = len(prod_data)
@@ -303,6 +317,13 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
             ('ALIGN',       (-1, 0), (-1, -1),  'CENTER'),
             ('TEXTCOLOR',   (-1, 0), (-1, 0),   BLANCO),
         ]
+    if _parcial:
+        # Resaltar filas con entrega parcial con fondo naranja suave
+        for fi in _filas_parciales:
+            _tbl_style.append(('BACKGROUND', (0, fi), (-1, fi), colors.HexColor('#FFF3E0')))
+        _tbl_style += [
+            ('ALIGN', (3, 0), (4, -1), 'CENTER'),
+        ]
     prod_tbl.setStyle(TableStyle(_tbl_style))
     story.append(prod_tbl)
     story.append(Spacer(1, 2.5*cm))
@@ -310,15 +331,28 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
     # Gestión (aprobación o cancelación)
     if aprobador:
         cancelada   = estatus == 'CANCELADA'
-        COLOR_G     = colors.HexColor('#dc3545') if cancelada else colors.HexColor('#1a7a3c')
-        FONDO_G     = colors.HexColor('#FFF5F5') if cancelada else colors.HexColor('#F0FAF4')
-        accion      = "cancelada" if cancelada else "aprobada"
-        titulo_g    = f"{'Cancelación' if cancelada else 'Aprobación'} de la Solicitud"
+        ep          = estatus == 'ENTREGA_PARCIAL'
+        if cancelada:
+            COLOR_G = colors.HexColor('#dc3545')
+            FONDO_G = colors.HexColor('#FFF5F5')
+            titulo_g = "Cancelación de la Solicitud"
+            accion   = "cancelada"
+        elif ep:
+            COLOR_G = colors.HexColor('#fd7e14')
+            FONDO_G = colors.HexColor('#FFF8F0')
+            titulo_g = "Aprobación y Recepción — Entrega Parcial"
+            accion   = "aprobada"
+        else:
+            COLOR_G = colors.HexColor('#1a7a3c')
+            FONDO_G = colors.HexColor('#F0FAF4')
+            titulo_g = "Aprobación de la Solicitud"
+            accion   = "aprobada"
         fecha_g_str = fecha_aprobacion.strftime("%d/%m/%Y a las %H:%M") if fecha_aprobacion else "—"
+        nota_parcial = " Se registró una <b>entrega parcial</b> — algunos artículos no llegaron en su totalidad." if ep else ""
         texto_g     = (
             f"Esta solicitud fue <b>{accion}</b> por <b>{aprobador['nombre']}</b>"
             f" — Matrícula: {aprobador['id']}, Cargo: {aprobador['cargo']}"
-            f" — el {fecha_g_str}."
+            f" — el {fecha_g_str}.{nota_parcial}"
         )
 
         s_tit_g  = _sty('tit_g', fontSize=9,  fontName='Helvetica-Bold',

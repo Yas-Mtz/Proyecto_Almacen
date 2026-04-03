@@ -59,6 +59,14 @@ class Solicitud(models.Model):
         blank=True,
         db_column='fecha_gestion'
     )
+    id_solicitud_origen = models.ForeignKey(
+        'self',
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        db_column='id_solicitud_origen',
+        related_name='solicitudes_seguimiento'
+    )
 
     class Meta:
         db_table = 'solicitud'
@@ -80,7 +88,8 @@ class DetalleSolicitud(models.Model):
         on_delete=models.DO_NOTHING,
         db_column='id_producto'
     )
-    cantidad = models.IntegerField(db_column='cantidad')
+    cantidad          = models.IntegerField(db_column='cantidad')
+    cantidad_recibida = models.IntegerField(null=True, blank=True, db_column='cantidad_recibida')
 
     class Meta:
         db_table = 'detalle_solicitud'
