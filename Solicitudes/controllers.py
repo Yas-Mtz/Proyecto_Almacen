@@ -160,6 +160,16 @@ def aprobar_solicitud(request, solicitud_id):
     try:
         with connection.cursor() as cursor:
             cursor.callproc("sp_aprobar_solicitud", [solicitud_id])
+
+        try:
+            persona = Personal.objects.get(correo=request.user.username)
+            id_aprobador = persona.id_personal
+        except Personal.DoesNotExist:
+            id_aprobador = None
+
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_registrar_gestion", [solicitud_id, id_aprobador])
+
         return JsonResponse({"status": "success", "message": "Solicitud aprobada"})
 
     except Exception as e:
@@ -177,6 +187,16 @@ def cancelar_solicitud(request, solicitud_id):
     try:
         with connection.cursor() as cursor:
             cursor.callproc("sp_cancelar_solicitud", [solicitud_id])
+
+        try:
+            persona = Personal.objects.get(correo=request.user.username)
+            id_gestor = persona.id_personal
+        except Personal.DoesNotExist:
+            id_gestor = None
+
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_registrar_gestion", [solicitud_id, id_gestor])
+
         return JsonResponse({"status": "success", "message": "Solicitud cancelada"})
 
     except Exception as e:
@@ -239,7 +259,24 @@ def exportar_pdf(request, solicitud_id):
         with connection.cursor() as cursor:
             cursor.callproc("sp_productos_solicitud", [solicitud_id])
             productos = cursor.fetchall()
+        with connection.cursor() as cursor:
+            cursor.callproc("sp_datos_gestion", [solicitud_id])
+            gestion = cursor.fetchone()
     except Exception as e:
         return HttpResponse(f"Error: {e}", status=400)
 
-    return generar_pdf_solicitud(sol, productos)
+    if gestion and gestion[1]:
+        fecha_gestion = gestion[0]
+        nombre_gestor = f"{gestion[2]} {gestion[3]}"
+        if gestion[4]:
+            nombre_gestor += f" {gestion[4]}"
+        gestor = {
+            'id':     gestion[1],
+            'nombre': nombre_gestor,
+            'cargo':  gestion[5] or '—',
+        }
+    else:
+        fecha_gestion = None
+        gestor = None
+
+    return generar_pdf_solicitud(sol, productos, gestor, fecha_gestion)

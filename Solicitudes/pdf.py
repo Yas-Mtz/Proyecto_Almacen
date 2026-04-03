@@ -9,7 +9,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
-    HRFlowable, Image, PageBreak, Paragraph,
+    Flowable, HRFlowable, Image, PageBreak, Paragraph,
     SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
@@ -54,8 +54,19 @@ def _make_circular_logo(path, size=120):
     return buf
 
 
-def _decorate_page(folio_ref, fecha_str):
-    """Devuelve la función de decoración de página (barras + footer)."""
+class _SentinelUltimaPagina(Flowable):
+    """Flowable de tamaño cero que registra en qué página fue dibujado."""
+    def __init__(self, flag):
+        super().__init__()
+        self.flag = flag
+        self.width = self.height = 0
+
+    def draw(self):
+        self.flag[0] = self.canv.getPageNumber()
+
+
+def _decorate_page(folio_ref, fecha_str, gest_info=None, ultima_pag_flag=None):
+    """Devuelve la función de decoración de página (barras + footer + recuadro gestión)."""
     def _draw(canv, doc):
         canv.saveState()
         canv.setFillColor(ROJO)
@@ -72,13 +83,49 @@ def _decorate_page(folio_ref, fecha_str):
         canv.setFillColor(ORO)
         canv.drawRightString(PAGE_W - MARGIN, 4*mm,
                              f"{folio_ref} · {fecha_str} · Pág. {doc.page}")
+
+        # Recuadro de gestión solo en la última página
+        if gest_info and ultima_pag_flag and ultima_pag_flag[0] == doc.page:
+            color_g = gest_info['color']
+            fondo_g = gest_info['fondo']
+            texto   = gest_info['texto']
+            titulo  = gest_info['titulo']
+
+            bx = MARGIN
+            bw = PAGE_W - 2 * MARGIN
+            # Fila de título: 18pt alto, fila de texto: 22pt alto
+            ty = 1.5 * cm   # Y base (sobre las barras del footer)
+            th = 18          # altura título
+            dh = 22          # altura datos
+
+            # Fondo título
+            canv.setFillColor(color_g)
+            canv.rect(bx, ty + dh, bw, th, fill=1, stroke=0)
+            # Fondo datos
+            canv.setFillColor(fondo_g)
+            canv.rect(bx, ty, bw, dh, fill=1, stroke=0)
+            # Borde exterior
+            canv.setStrokeColor(color_g)
+            canv.setLineWidth(0.8)
+            canv.rect(bx, ty, bw, th + dh, fill=0, stroke=1)
+
+            # Texto título
+            canv.setFillColor(colors.white)
+            canv.setFont('Helvetica-Bold', 8)
+            canv.drawString(bx + 10, ty + dh + 5, titulo)
+
+            # Texto datos
+            canv.setFillColor(colors.HexColor('#1a1a1a'))
+            canv.setFont('Helvetica', 8.5)
+            canv.drawString(bx + 10, ty + 7, texto)
+
         canv.restoreState()
     return _draw
 
 
 # ── Función principal ─────────────────────────────────────────────────────────
 
-def generar_pdf_solicitud(sol, productos):
+def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None):
     """
     Recibe la fila de cabecera (sol) y las filas de productos,
     y devuelve un HttpResponse con el PDF generado.
@@ -115,6 +162,17 @@ def generar_pdf_solicitud(sol, productos):
     s_td_r  = _sty('tdr',  fontSize=9,  fontName='Helvetica-Bold',    textColor=ROJO,   alignment=TA_RIGHT, leading=12)
     s_sign  = _sty('sgn',  fontSize=9,  fontName='Helvetica',         textColor=NEGRO,  alignment=TA_CENTER, leading=13)
     s_tot   = _sty('tot',  fontSize=9,  fontName='Helvetica-Bold',    textColor=NEGRO,  alignment=TA_RIGHT,  leading=12)
+
+    # Estilos para columna de estado en tabla de productos
+    _con_estado = estatus in ('APROBADA', 'CANCELADA')
+    if _con_estado:
+        _icono    = '✓' if estatus == 'APROBADA' else '✗'
+        _col_icon = colors.HexColor('#1a7a3c') if estatus == 'APROBADA' else colors.HexColor('#dc3545')
+        _fondo_icon = colors.HexColor('#EAF7EE') if estatus == 'APROBADA' else colors.HexColor('#FDECEA')
+        s_th_icon = _sty('th_ic', fontSize=10, fontName='Helvetica-Bold',
+                          textColor=BLANCO, leading=12, alignment=TA_CENTER)
+        s_td_icon = _sty('td_ic', fontSize=12, fontName='Helvetica-Bold',
+                          textColor=_col_icon, leading=14, alignment=TA_CENTER)
 
     def dato(label, valor, italic=False):
         return [Paragraph(label, s_label), Paragraph(str(valor), s_obs if italic else s_val)]
@@ -191,31 +249,39 @@ def generar_pdf_solicitud(sol, productos):
     story.append(Paragraph("Productos Solicitados", s_sec))
     story.append(Spacer(1, 6))
 
-    prod_data = [[
-        Paragraph("#",                        s_th),
-        Paragraph("Clave",                    s_th),
-        Paragraph("Descripción del Artículo", s_th),
-        Paragraph("Cantidad",                 s_th),
-    ]]
+    _hdrs = ["#", "Clave", "Descripción del Artículo", "Cantidad"]
+    _cols = [1.2*cm, 2*cm, None, 2.2*cm]
+    if _con_estado:
+        _hdrs.append(_icono)
+        _cols.append(1.2*cm)
+
+    prod_data = [[Paragraph(h, s_th) for h in _hdrs]]
     total_items = 0
     for i, p in enumerate(productos, 1):
         total_items += p[2]
-        prod_data.append([
+        fila = [
             Paragraph(f"{i:02d}", s_td),
             Paragraph(str(p[0]), s_td),
             Paragraph(str(p[1]), s_td),
             Paragraph(str(p[2]), s_td_r),
-        ])
-    prod_data.append([
+        ]
+        if _con_estado:
+            fila.append(Paragraph(_icono, s_td_icon))
+        prod_data.append(fila)
+
+    fila_tot = [
         Paragraph("", s_td),
         Paragraph("", s_td),
         Paragraph("Total de artículos solicitados", s_tot),
         Paragraph(str(total_items), s_td_r),
-    ])
+    ]
+    if _con_estado:
+        fila_tot.append(Paragraph("", s_td))
+    prod_data.append(fila_tot)
 
     n = len(prod_data)
-    prod_tbl = Table(prod_data, colWidths=[1.2*cm, 2*cm, None, 2.2*cm])
-    prod_tbl.setStyle(TableStyle([
+    prod_tbl = Table(prod_data, colWidths=_cols)
+    _tbl_style = [
         ('BACKGROUND',    (0, 0), (-1, 0),   ROJO),
         ('TOPPADDING',    (0, 0), (-1, 0),   8),
         ('BOTTOMPADDING', (0, 0), (-1, 0),   8),
@@ -230,22 +296,53 @@ def generar_pdf_solicitud(sol, productos):
         ('LEFTPADDING',   (0, 0), (-1, -1),  8),
         ('RIGHTPADDING',  (-1,0), (-1, -1),  8),
         ('ALIGN',         (-1, 0), (-1, -1), 'RIGHT'),
-    ]))
+    ]
+    if _con_estado:
+        _tbl_style += [
+            ('BACKGROUND',  (-1, 1), (-1, n-2), _fondo_icon),
+            ('ALIGN',       (-1, 0), (-1, -1),  'CENTER'),
+            ('TEXTCOLOR',   (-1, 0), (-1, 0),   BLANCO),
+        ]
+    prod_tbl.setStyle(TableStyle(_tbl_style))
     story.append(prod_tbl)
     story.append(Spacer(1, 2.5*cm))
 
-    # Firmas
-    firma_line = HRFlowable(width="80%", thickness=0.7, color=NEGRO)
-    story.append(Table(
-        [[firma_line, '', firma_line]],
-        colWidths=[6*cm, None, 6*cm],
-        style=[('VALIGN', (0, 0), (-1, -1), 'BOTTOM')],
-    ))
-    story.append(Spacer(1, 4))
-    story.append(Table(
-        [[Paragraph("Firma del Solicitante", s_sign), '', Paragraph("Encargado de Almacén", s_sign)]],
-        colWidths=[6*cm, None, 6*cm],
-    ))
+    # Gestión (aprobación o cancelación)
+    if aprobador:
+        cancelada   = estatus == 'CANCELADA'
+        COLOR_G     = colors.HexColor('#dc3545') if cancelada else colors.HexColor('#1a7a3c')
+        FONDO_G     = colors.HexColor('#FFF5F5') if cancelada else colors.HexColor('#F0FAF4')
+        accion      = "cancelada" if cancelada else "aprobada"
+        titulo_g    = f"{'Cancelación' if cancelada else 'Aprobación'} de la Solicitud"
+        fecha_g_str = fecha_aprobacion.strftime("%d/%m/%Y a las %H:%M") if fecha_aprobacion else "—"
+        texto_g     = (
+            f"Esta solicitud fue <b>{accion}</b> por <b>{aprobador['nombre']}</b>"
+            f" — Matrícula: {aprobador['id']}, Cargo: {aprobador['cargo']}"
+            f" — el {fecha_g_str}."
+        )
+
+        s_tit_g  = _sty('tit_g', fontSize=9,  fontName='Helvetica-Bold',
+                         textColor=BLANCO, leading=13, spaceAfter=0)
+        s_body_g = _sty('body_g', fontSize=9.5, fontName='Helvetica-Oblique',
+                         textColor=colors.HexColor('#2a2a2a'), leading=15)
+
+        recuadro = Table([
+            [Paragraph(titulo_g, s_tit_g)],
+            [Paragraph(texto_g,  s_body_g)],
+        ], colWidths=[None])
+        recuadro.setStyle(TableStyle([
+            ('BACKGROUND',    (0, 0), (0, 0), COLOR_G),
+            ('BACKGROUND',    (0, 1), (0, 1), FONDO_G),
+            ('BOX',           (0, 0), (-1, -1), 0.8, COLOR_G),
+            ('TOPPADDING',    (0, 0), (0, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 6),
+            ('TOPPADDING',    (0, 1), (0, 1), 9),
+            ('BOTTOMPADDING', (0, 1), (0, 1), 9),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
+        ]))
+        story.append(Spacer(1, 12*cm))
+        story.append(recuadro)
 
     # ── Construir PDF ─────────────────────────────────────────────────────────
     buffer = BytesIO()

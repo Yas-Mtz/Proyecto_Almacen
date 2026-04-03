@@ -46,6 +46,19 @@ class Solicitud(models.Model):
         db_column='id_estatus',
         default=1
     )
+    gestionado_por = models.ForeignKey(
+        Personal,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        db_column='gestionado_por',
+        related_name='solicitudes_gestionadas'
+    )
+    fecha_gestion = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_column='fecha_gestion'
+    )
 
     class Meta:
         db_table = 'solicitud'

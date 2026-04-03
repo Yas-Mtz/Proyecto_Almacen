@@ -258,6 +258,18 @@ export default function Solicitud() {
     }
   }
 
+  // ── Nueva solicitud ───────────────────────────────────────────────────────
+  const handleNuevaSolicitud = () => {
+    setSolicitudActual(null)
+    setForm({ matricula: '', nombre: '', id_rol: '', id_almacen: '', observaciones: '' })
+    setProductos([])
+    setProdSel({ id_producto: '', cantidad: 1 })
+    setPersonalValido(false)
+    setPersonalStatus(null)
+    setCheckedItems(new Set())
+    document.getElementById('nueva-solicitud-container')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   // ── Cancelar solicitud ─────────────────────────────────────────────────────
   const handleCancelar = async () => {
     if (!solicitudActual) return
@@ -324,6 +336,10 @@ export default function Solicitud() {
         confirmButtonColor: '#28a745',
       })
       if (conf.isConfirmed) await handleAprobar()
+      else {
+        nuevos.delete(id_producto)
+        setCheckedItems(new Set(nuevos))
+      }
     }
   }
 
@@ -574,8 +590,8 @@ export default function Solicitud() {
             <div className="form-grid">
               <div className="form-group">
                 <label>ID de la solicitud</label>
-                <input type="number" placeholder="Ej. 1024" value={buscarId}
-                  onChange={e => setBuscarId(e.target.value)}
+                <input type="text" inputMode="numeric" placeholder="Ej. 1024" value={buscarId}
+                  onChange={e => { if (/^\d*$/.test(e.target.value)) setBuscarId(e.target.value) }}
                   onKeyDown={e => e.key === 'Enter' && handleBuscarSolicitud()} />
               </div>
               <div className="form-actions-inline">
@@ -588,7 +604,24 @@ export default function Solicitud() {
 
           {/* Nueva solicitud */}
           <section className="card" id="nueva-solicitud-container">
-            <h3><i className="fas fa-file-alt"></i> Nueva Solicitud</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0 }}><i className="fas fa-file-alt"></i> Nueva Solicitud</h3>
+              {solicitudActual && (
+                <button
+                  type="button"
+                  onClick={handleNuevaSolicitud}
+                  style={{
+                    background: 'none', border: '1px solid #640404',
+                    color: '#640404', cursor: 'pointer', fontSize: '0.8rem',
+                    padding: '3px 10px', borderRadius: '6px',
+                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  }}
+                  title="Limpiar formulario y crear nueva solicitud"
+                >
+                  <i className="fas fa-plus"></i> Nueva
+                </button>
+              )}
+            </div>
             <div className="two-col-layout">
 
               {/* ── Columna izquierda: Datos del solicitante ── */}
@@ -773,11 +806,6 @@ export default function Solicitud() {
                         <button type="button" className="btn-export" onClick={handleExportar}>
                           <i className="fas fa-file-pdf"></i> Exportar PDF
                         </button>
-                        {accionable && (
-                          <button className="btn btn-success" onClick={handleAprobar}>
-                            <i className="fas fa-check-circle"></i> Aprobar
-                          </button>
-                        )}
                         {accionable && (
                           <button className="btn btn-danger" onClick={handleCancelar}>
                             <i className="fas fa-times-circle"></i> Cancelar
