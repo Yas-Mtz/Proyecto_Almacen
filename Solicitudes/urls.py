@@ -12,4 +12,5 @@ urlpatterns = [
     path('recepcion/<int:solicitud_id>/', controllers.registrar_recepcion, name='registrar_recepcion'),
     path('alertas-stock/', controllers.alertas_stock, name='alertas_stock'),
     path('exportar/pdf/<int:solicitud_id>/', controllers.exportar_pdf, name='exportar_pdf'),
+    path('limites/', controllers.limites_solicitud, name='limites_solicitud'),
 ]

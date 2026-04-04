@@ -326,7 +326,7 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
         ]
     prod_tbl.setStyle(TableStyle(_tbl_style))
     story.append(prod_tbl)
-    story.append(Spacer(1, 2.5*cm))
+    story.append(Spacer(1, 0.6*cm))
 
     # Gestión (aprobación o cancelación)
     if aprobador:
@@ -375,7 +375,6 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
             ('LEFTPADDING',   (0, 0), (-1, -1), 12),
             ('RIGHTPADDING',  (0, 0), (-1, -1), 12),
         ]))
-        story.append(Spacer(1, 12*cm))
         story.append(recuadro)
 
     # ── Construir PDF ─────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ from django.db import connection
 from django.contrib.auth.decorators import login_required
 from SistemaUACM.models import Almacen, Rol, Personal, TipoAlmacen, Estatus
 from GestiondeProductos.models import Producto
+from .models import LimiteSolicitud
 import json
 import re
 import traceback
@@ -346,3 +347,56 @@ def exportar_pdf(request, solicitud_id):
         gestor = None
 
     return generar_pdf_solicitud(sol, productos, gestor, fecha_gestion)
+
+
+@login_required
+def limites_solicitud(request):
+    """GET: lista límites. POST: crea/actualiza. DELETE: elimina."""
+    if request.method == 'GET':
+        limites = LimiteSolicitud.objects.select_related('id_producto').all()
+        return JsonResponse({'limites': [
+            {
+                'id_limite':       l.id_limite,
+                'id_producto':     l.id_producto.id_producto,
+                'nombre_producto': l.id_producto.nombre_producto,
+                'cantidad_maxima': l.cantidad_maxima,
+                'periodo':         l.periodo,
+            }
+            for l in limites
+        ]})
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            id_producto     = data['id_producto']
+            cantidad_maxima = int(data['cantidad_maxima'])
+            periodo         = data.get('periodo', 'diario')
+            if cantidad_maxima <= 0:
+                return JsonResponse({'error': 'La cantidad máxima debe ser mayor a 0'}, status=400)
+            producto = Producto.objects.get(id_producto=id_producto)
+            limite, created = LimiteSolicitud.objects.update_or_create(
+                id_producto=producto,
+                defaults={'cantidad_maxima': cantidad_maxima, 'periodo': periodo},
+            )
+            return JsonResponse({
+                'status': 'success',
+                'id_limite':       limite.id_limite,
+                'nombre_producto': producto.nombre_producto,
+                'cantidad_maxima': limite.cantidad_maxima,
+                'periodo':         limite.periodo,
+                'created':         created,
+            })
+        except Producto.DoesNotExist:
+            return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    if request.method == 'DELETE':
+        try:
+            data = json.loads(request.body)
+            LimiteSolicitud.objects.filter(id_limite=data['id_limite']).delete()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)

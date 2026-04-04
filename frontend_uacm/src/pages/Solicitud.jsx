@@ -11,13 +11,14 @@ function getCookie(name) {
 }
 
 const APP_URLS = {
-  crear_solicitud:      '/Solicitudes/crear/',
-  buscar_personal_qr:   '/Solicitudes/buscar-personal/',
-  cancelar_solicitud:   '/Solicitudes/cancelar/',
-  aprobar_solicitud:    '/Solicitudes/aprobar/',
-  buscar_solicitud:     '/Solicitudes/buscar/',
-  exportar_pdf:         '/Solicitudes/exportar/pdf/',
-registrar_recepcion:  '/Solicitudes/recepcion/',
+  crear_solicitud:     '/Solicitudes/crear/',
+  buscar_personal_qr:  '/Solicitudes/buscar-personal/',
+  cancelar_solicitud:  '/Solicitudes/cancelar/',
+  aprobar_solicitud:   '/Solicitudes/aprobar/',
+  buscar_solicitud:    '/Solicitudes/buscar/',
+  exportar_pdf:        '/Solicitudes/exportar/pdf/',
+  registrar_recepcion: '/Solicitudes/recepcion/',
+  limites:             '/Solicitudes/limites/',
 }
 
 const statusMap = {
@@ -55,6 +56,9 @@ export default function Solicitud() {
   const [modalRecepcion, setModalRecepcion]   = useState(false)
   const [recepcionItems, setRecepcionItems]   = useState([])
   const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+  const [modalLimites, setModalLimites]       = useState(false)
+  const [limites, setLimites]                 = useState([])
+  const [formLimite, setFormLimite]           = useState({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
 
   const qrInputRef  = useRef(null)
   const rolRef      = useRef(null)
@@ -579,6 +583,64 @@ export default function Solicitud() {
     window.open(`${APP_URLS.exportar_pdf}${solicitudActual.id_solicitud}/`)
   }
 
+  // ── Gestión de límites ────────────────────────────────────────────────────
+  const abrirModalLimites = async () => {
+    try {
+      const res = await fetch(APP_URLS.limites)
+      const data = await res.json()
+      setLimites(data.limites)
+      setModalLimites(true)
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los límites.' })
+    }
+  }
+
+  const handleGuardarLimite = async () => {
+    if (!formLimite.id_producto) {
+      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Selecciona un producto.' }); return
+    }
+    try {
+      const res = await fetch(APP_URLS.limites, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(formLimite),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        const res2 = await fetch(APP_URLS.limites)
+        const data2 = await res2.json()
+        setLimites(data2.limites)
+        setFormLimite({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
+        window.Swal.fire({ icon: 'success', title: result.created ? 'Límite creado' : 'Límite actualizado', timer: 1500, showConfirmButton: false })
+      } else {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error })
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el límite.' })
+    }
+  }
+
+  const handleEliminarLimite = async (id_limite) => {
+    const conf = await window.Swal.fire({
+      icon: 'question', title: '¿Eliminar límite?',
+      showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'No',
+      confirmButtonColor: '#dc3545',
+    })
+    if (!conf.isConfirmed) return
+    try {
+      const res = await fetch(APP_URLS.limites, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ id_limite }),
+      })
+      if (res.ok) {
+        setLimites(prev => prev.filter(l => l.id_limite !== id_limite))
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el límite.' })
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!datos) return <p style={{ padding: '2rem' }}>Cargando...</p>
 
@@ -596,6 +658,20 @@ export default function Solicitud() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {datos.user_role?.toLowerCase().includes('encargado') && (
+              <button
+                type="button"
+                onClick={abrirModalLimites}
+                style={{
+                  background: 'none', border: '1px solid #640404', color: '#640404',
+                  cursor: 'pointer', fontSize: '0.8rem', padding: '4px 10px',
+                  borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                }}
+                title="Gestionar límites de solicitud"
+              >
+                <i className="fas fa-sliders-h"></i> Límites
+              </button>
+            )}
             {campanaVisible && (
               <button
                 type="button"
@@ -1048,6 +1124,85 @@ export default function Solicitud() {
               onClick={() => { setQrModo(null); setQrInput('') }}>
               <i className="fas fa-times"></i> Cancelar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gestión de Límites */}
+      {modalLimites && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '640px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto' }}>
+            <h4 style={{ marginBottom: '1.25rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
+              <i className="fas fa-sliders-h" style={{ color: '#640404' }}></i> Límites de Solicitud por Producto
+            </h4>
+
+            {/* Formulario agregar/actualizar */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px auto', gap: '0.5rem', alignItems: 'end', marginBottom: '1rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.75rem' }}>Producto</label>
+                <select value={formLimite.id_producto} onChange={e => setFormLimite(f => ({ ...f, id_producto: e.target.value }))}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }}>
+                  <option value="">Seleccione...</option>
+                  {datos.productos?.map(p => <option key={p.id_producto} value={p.id_producto}>{p.nombre_producto}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.75rem' }}>Máximo</label>
+                <input type="number" min={1} value={formLimite.cantidad_maxima}
+                  onChange={e => setFormLimite(f => ({ ...f, cantidad_maxima: parseInt(e.target.value) || 1 }))}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }} />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontSize: '0.75rem' }}>Periodo</label>
+                <select value={formLimite.periodo} onChange={e => setFormLimite(f => ({ ...f, periodo: e.target.value }))}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }}>
+                  <option value="diario">Diario</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensual">Mensual</option>
+                </select>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={handleGuardarLimite}
+                style={{ padding: '6px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                <i className="fas fa-save"></i> Guardar
+              </button>
+            </div>
+
+            {/* Tabla de límites actuales */}
+            <div style={{ overflowY: 'auto', maxHeight: '45vh', border: '1px solid #e5e5e5', borderRadius: '6px', marginBottom: '1rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
+                <thead>
+                  <tr style={{ background: '#6B0F1A', color: '#fff' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Producto</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Máximo</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Periodo</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {limites.length === 0 && (
+                    <tr><td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: '#888' }}>Sin límites configurados</td></tr>
+                  )}
+                  {limites.map((l, i) => (
+                    <tr key={l.id_limite} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '7px 12px' }}>{l.nombre_producto}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 700 }}>{l.cantidad_maxima}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', textTransform: 'capitalize' }}>{l.periodo}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                        <button type="button" className="btn-remove" onClick={() => handleEliminarLimite(l.id_limite)}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalLimites(false)}>
+                <i className="fas fa-times"></i> Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
