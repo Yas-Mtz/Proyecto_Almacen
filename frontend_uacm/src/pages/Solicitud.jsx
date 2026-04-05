@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+function statusDotColor(nombre) {
+  const n = (nombre || '').toLowerCase().trim()
+  if (n === 'activo')   return '#28a745'
+  if (n === 'agotado')  return '#dc3545'
+  return '#6c757d'
+}
+
+function prodTemplate(option) {
+  if (!option.id || !window.$) return option.text
+  const status = window.$(option.element).data('status') || ''
+  const color  = statusDotColor(status)
+  return window.$(`<span style="display:flex;align-items:center;gap:6px">
+    <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+    <span>${option.text}</span>
+  </span>`)
+}
+
 function getCookie(name) {
   let value = null
   if (document.cookie)
@@ -32,6 +49,7 @@ const clsMap = {
   APROBADA:        'status-aprobado',
   CANCELADA:       'status-cancelado',
   ENTREGA_PARCIAL: 'status-parcial',
+  COMPLETADA:      'status-completada',
 }
 
 export default function Solicitud() {
@@ -55,15 +73,17 @@ export default function Solicitud() {
   const [catalogosModal, setCatalogosModal]   = useState(null)
   const [modalRecepcion, setModalRecepcion]   = useState(false)
   const [recepcionItems, setRecepcionItems]   = useState([])
-  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
   const [modalLimites, setModalLimites]       = useState(false)
   const [limites, setLimites]                 = useState([])
   const [formLimite, setFormLimite]           = useState({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
 
-  const qrInputRef  = useRef(null)
-  const rolRef      = useRef(null)
-  const almacenRef  = useRef(null)
-  const productoRef = useRef(null)
+  const qrInputRef      = useRef(null)
+  const rolRef          = useRef(null)
+  const almacenRef      = useRef(null)
+  const productoRef     = useRef(null)
+  const limiteProdRef   = useRef(null)
+  const limitePeriRef   = useRef(null)
 
   // ── Callback refs: Select2 se inicializa en el mismo commit que el elemento ──
   const rolCallbackRef = useCallback(el => {
@@ -83,9 +103,10 @@ export default function Solicitud() {
   const productoCallbackRef = useCallback(el => {
     productoRef.current = el
     if (!el || !window.$ || !window.$.fn?.select2) return
-    window.$(el).select2({ placeholder: 'Seleccione un producto', width: '100%' })
+    window.$(el).select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
       .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
   }, [])
+
 
   // ── Cargar catálogos + alertas de stock ───────────────────────────────────
   useEffect(() => {
@@ -138,12 +159,29 @@ export default function Solicitud() {
     window.$(productoRef.current).val(prodSel.id_producto).trigger('change.select2')
   }, [prodSel.id_producto])
 
+  // ── Select2 modal Límites ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!modalLimites || !window.$ || !window.$.fn?.select2) return
+    const $prod = window.$(limiteProdRef.current)
+    const $peri = window.$(limitePeriRef.current)
+    $prod.select2({ placeholder: 'Seleccione...', width: '100%', dropdownParent: window.$('body') })
+      .on('change.select2', e => setFormLimite(f => ({ ...f, id_producto: e.target.value })))
+    $peri.select2({ width: '100%', minimumResultsForSearch: Infinity, dropdownParent: window.$('body') })
+      .on('change.select2', e => setFormLimite(f => ({ ...f, periodo: e.target.value })))
+    $prod.val(formLimite.id_producto).trigger('change.select2')
+    $peri.val(formLimite.periodo).trigger('change.select2')
+    return () => {
+      if ($prod.data('select2')) $prod.select2('destroy')
+      if ($peri.data('select2')) $peri.select2('destroy')
+    }
+  }, [modalLimites])
+
   // ── Reinicializar Select2 de producto cuando cambia la lista o el almacén ──
   useEffect(() => {
     if (!window.$ || !productoRef.current) return
     const $el = window.$(productoRef.current)
     if ($el.data('select2')) $el.select2('destroy')
-    $el.select2({ placeholder: 'Seleccione un producto', width: '100%' })
+    $el.select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
       .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
     // Limpiar selección si el producto actual quedó fuera del filtro
     if (prodSel.id_producto) {
@@ -405,7 +443,7 @@ export default function Solicitud() {
       const result = await res.json()
       if (res.ok) {
         const hayParcial = recepcionItems.some(p => p.cantidad_recibida < p.cantidad)
-        const nuevoEstatus = hayParcial ? 'ENTREGA_PARCIAL' : 'APROBADA'
+        const nuevoEstatus = hayParcial ? 'ENTREGA_PARCIAL' : 'COMPLETADA'
         setSolicitudActual(s => ({ ...s, estatus: nuevoEstatus }))
         setModalRecepcion(false)
         const idNueva = result.id_solicitud_nueva
@@ -531,6 +569,7 @@ export default function Solicitud() {
           descripcion_producto: formNuevoProd.descripcion,
           categoria_id:         formNuevoProd.id_categoria,
           unidad_id:            formNuevoProd.id_unidad,
+          stock_minimo:         parseInt(formNuevoProd.stock_minimo) || 10,
         }),
       })
       const result = await res.json()
@@ -538,7 +577,7 @@ export default function Solicitud() {
         setDatos(d => ({ ...d, productos: [...d.productos, { id_producto: result.id_producto, nombre_producto: result.nombre_producto, cantidad: result.cantidad }] }))
         setProdSel(s => ({ ...s, id_producto: String(result.id_producto) }))
         setModalNuevoProd(false)
-        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
         window.Swal.fire({ icon: 'success', title: 'Producto creado', text: `"${result.nombre_producto}" registrado correctamente.`, timer: 2000, showConfirmButton: false })
       } else {
         window.Swal.fire({ icon: 'error', title: 'Error', text: result.message })
@@ -840,7 +879,7 @@ export default function Solicitud() {
                         <select ref={productoCallbackRef}>
                           <option value="">Seleccione un producto</option>
                           {productosFiltrados.map(p => (
-                            <option key={p.id_producto} value={p.id_producto}>
+                            <option key={p.id_producto} value={p.id_producto} data-status={p.nombre_estatus || ''}>
                               {p.nombre_producto} ({p.cantidad})
                             </option>
                           ))}
@@ -992,6 +1031,11 @@ export default function Solicitud() {
                   {catalogosModal?.unidades_list?.map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.abreviatura})</option>)}
                 </select>
               </div>
+              <div className="form-group">
+                <label>Stock mínimo</label>
+                <input type="number" min={0} value={formNuevoProd.stock_minimo}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, stock_minimo: e.target.value }))} />
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setModalNuevoProd(false)}>
@@ -1137,32 +1181,28 @@ export default function Solicitud() {
             </h4>
 
             {/* Formulario agregar/actualizar */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px auto', gap: '0.5rem', alignItems: 'end', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 140px auto', gap: '0.75rem', alignItems: 'end', marginBottom: '1.25rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Producto</label>
-                <select value={formLimite.id_producto} onChange={e => setFormLimite(f => ({ ...f, id_producto: e.target.value }))}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }}>
+                <label>Producto</label>
+                <select ref={limiteProdRef}>
                   <option value="">Seleccione...</option>
                   {datos.productos?.map(p => <option key={p.id_producto} value={p.id_producto}>{p.nombre_producto}</option>)}
                 </select>
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Máximo</label>
+                <label>Máximo</label>
                 <input type="number" min={1} value={formLimite.cantidad_maxima}
-                  onChange={e => setFormLimite(f => ({ ...f, cantidad_maxima: parseInt(e.target.value) || 1 }))}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }} />
+                  onChange={e => setFormLimite(f => ({ ...f, cantidad_maxima: parseInt(e.target.value) || 1 }))} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label style={{ fontSize: '0.75rem' }}>Periodo</label>
-                <select value={formLimite.periodo} onChange={e => setFormLimite(f => ({ ...f, periodo: e.target.value }))}
-                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '0.85rem' }}>
+                <label>Periodo</label>
+                <select ref={limitePeriRef}>
                   <option value="diario">Diario</option>
                   <option value="semanal">Semanal</option>
                   <option value="mensual">Mensual</option>
                 </select>
               </div>
-              <button type="button" className="btn btn-primary" onClick={handleGuardarLimite}
-                style={{ padding: '6px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+              <button type="button" className="btn btn-primary" onClick={handleGuardarLimite}>
                 <i className="fas fa-save"></i> Guardar
               </button>
             </div>

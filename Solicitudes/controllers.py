@@ -60,7 +60,8 @@ def datos_solicitud(request):
         ],
         'productos': [
             {'id_producto': p.id_producto, 'nombre_producto': p.nombre_producto,
-             'cantidad': p.cantidad, 'id_estatus': p.estatus.id_estatus}
+             'cantidad': p.cantidad, 'id_estatus': p.estatus.id_estatus if p.estatus else None,
+             'nombre_estatus': p.estatus.nombre_estatus if p.estatus else ''}
             for p in productos
         ],
         'roles': [
@@ -274,22 +275,17 @@ def registrar_recepcion(request, solicitud_id):
 
 @login_required
 def alertas_stock(request):
-    """Devuelve productos activos con cantidad < stock_minimo"""
-    id_activo = _id_estatus_activo()
-    productos = Producto.objects.select_related('estatus').filter(
-        estatus__id_estatus=id_activo,
-        stock_minimo__gt=0,
-    )
-    bajos = [
-        {
-            'id_producto':    p.id_producto,
-            'nombre_producto': p.nombre_producto,
-            'cantidad':       p.cantidad,
-            'stock_minimo':   p.stock_minimo,
-            'faltante':       p.stock_minimo - p.cantidad,
-        }
-        for p in productos if p.cantidad < p.stock_minimo
-    ]
+    """Devuelve productos con cantidad < stock_minimo, sin depender de nombres de estatus."""
+    bajos = []
+    for p in Producto.objects.filter(stock_minimo__gt=0):
+        if p.cantidad < p.stock_minimo:
+            bajos.append({
+                'id_producto':     p.id_producto,
+                'nombre_producto': p.nombre_producto,
+                'cantidad':        p.cantidad,
+                'stock_minimo':    p.stock_minimo,
+                'faltante':        p.stock_minimo - p.cantidad,
+            })
     return JsonResponse({'alertas': bajos})
 
 

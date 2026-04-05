@@ -649,6 +649,12 @@ tbody tr:hover { background: rgba(100,4,4,.03); }
     border: 1.5px solid rgba(253,126,20,.4);
 }
 
+.status-completada {
+    background: rgba(40,167,69,.15);
+    color: #0b4f1e;
+    border: 1.5px solid rgba(40,167,69,.5);
+}
+
 /* =======================
    QR SCANNER
 ======================= */
@@ -1049,6 +1055,7 @@ tbody tr:hover { background: rgba(100,4,4,.03); }
     box-shadow: 0 8px 25px rgba(0,0,0,.12);
     overflow: hidden;
     font-family: 'Inter', 'Segoe UI', sans-serif;
+    z-index: 99998;
 }
 
 .select2-container--default .select2-search--dropdown {

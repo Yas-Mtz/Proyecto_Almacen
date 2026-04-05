@@ -192,12 +192,14 @@ def crear_producto_rapido(request):
         ultimo = Producto.objects.order_by('-id_producto').first()
         next_id = (ultimo.id_producto + 1) if ultimo else 1
 
+        stock_minimo = int(data.get('stock_minimo', 10) or 10)
+
         command = AgregarProductoCommand(
             id_producto=next_id,
             nombre_producto=data.get('nombre_producto', '').strip(),
             descripcion_producto=data.get('descripcion_producto', ''),
             cantidad=0,
-            stock_minimo=0,
+            stock_minimo=stock_minimo,
             estatus_id=estatus.id_estatus,
             categoria_id=data.get('categoria_id'),
             marca_id=marca.id_marca,
