@@ -59,6 +59,14 @@ class Solicitud(models.Model):
         blank=True,
         db_column='fecha_gestion'
     )
+    id_solicitud_origen = models.ForeignKey(
+        'self',
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        db_column='id_solicitud_origen',
+        related_name='solicitudes_seguimiento'
+    )
 
     class Meta:
         db_table = 'solicitud'
@@ -66,6 +74,26 @@ class Solicitud(models.Model):
 
     def __str__(self):
         return f'Solicitud #{self.id_solicitud}'
+
+
+class LimiteSolicitud(models.Model):
+    id_limite       = models.AutoField(primary_key=True, db_column='id_limite')
+    id_producto     = models.ForeignKey(
+        Producto, on_delete=models.CASCADE, db_column='id_producto'
+    )
+    cantidad_maxima = models.IntegerField(default=5, db_column='cantidad_maxima')
+    periodo         = models.CharField(
+        max_length=10,
+        choices=[('diario', 'Diario'), ('semanal', 'Semanal'), ('mensual', 'Mensual')],
+        default='diario',
+        db_column='periodo'
+    )
+
+    class Meta:
+        db_table = 'limite_solicitud'
+
+    def __str__(self):
+        return f'{self.id_producto.nombre_producto} — máx {self.cantidad_maxima} ({self.periodo})'
 
 
 class DetalleSolicitud(models.Model):
@@ -80,7 +108,8 @@ class DetalleSolicitud(models.Model):
         on_delete=models.DO_NOTHING,
         db_column='id_producto'
     )
-    cantidad = models.IntegerField(db_column='cantidad')
+    cantidad          = models.IntegerField(db_column='cantidad')
+    cantidad_recibida = models.IntegerField(null=True, blank=True, db_column='cantidad_recibida')
 
     class Meta:
         db_table = 'detalle_solicitud'
