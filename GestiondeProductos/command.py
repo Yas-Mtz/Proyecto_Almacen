@@ -1,6 +1,7 @@
 import os
 import glob
 import logging
+import unicodedata
 
 from typing import Dict, Any
 from django.core.exceptions import ValidationError
@@ -32,7 +33,8 @@ def generar_qr_temp(data):
 
 def guardar_imagen_categoria(imagen_file, id_producto, categoria_nombre):
     """Guarda o actualiza la imagen del producto — lógica de negocio del Modelo"""
-    safe_categoria = ''.join(c for c in categoria_nombre if c.isalnum() or c in (' ', '_')).rstrip()
+    categoria_sin_tildes = unicodedata.normalize('NFKD', categoria_nombre).encode('ascii', 'ignore').decode('ascii')
+    safe_categoria = ''.join(c for c in categoria_sin_tildes if c.isalnum() or c in (' ', '_')).rstrip()
     safe_categoria = safe_categoria.replace(' ', '_').lower()
     categoria_dir = os.path.join(settings.MEDIA_ROOT, 'productos', safe_categoria)
     os.makedirs(categoria_dir, exist_ok=True)

@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from SistemaUACM.models import Almacen, Rol, Personal, TipoAlmacen, Estatus
 from GestiondeProductos.models import Producto
 from .models import LimiteSolicitud
+from .pdf import generar_pdf_solicitud
+from .email import enviar_correo_solicitud, enviar_correo_entrega_parcial
 import json
 import re
 import traceback
@@ -33,6 +35,20 @@ def _id_estatus_activo():
         return Estatus.objects.get(nombre_estatus='Activo').id_estatus
     except Estatus.DoesNotExist:
         return None
+
+
+def _row_to_dict(cursor, row):
+    """Convierte una fila de cursor en diccionario usando los nombres de columnas."""
+    if row is None:
+        return None
+    columns = [col[0] for col in cursor.description]
+    return dict(zip(columns, row))
+
+
+def _rows_to_dicts(cursor, rows):
+    """Convierte múltiples filas de cursor en lista de diccionarios."""
+    columns = [col[0] for col in cursor.description]
+    return [dict(zip(columns, row)) for row in rows]
 
 
 @login_required
@@ -90,39 +106,39 @@ def crear_solicitud(request):
 
         with connection.cursor() as cursor:
             cursor.callproc("sp_cabecera_solicitud", [id_solicitud])
-            sol = cursor.fetchone()
+            sol = _row_to_dict(cursor, cursor.fetchone())
         with connection.cursor() as cursor:
             cursor.callproc("sp_productos_solicitud", [id_solicitud])
-            productos = cursor.fetchall()
+            productos = _rows_to_dicts(cursor, cursor.fetchall())
 
         # ── Enviar correo si es encargado y destino es almacén central ──────
-        es_encargado  = 'encargado' in (sol[7] or '').lower()
-        es_central    = sol[1] in _ids_almacen_central()
+        try:
+            _id_rol_encargado = Rol.objects.get(nombre_rol='Encargado').id_rol
+            es_encargado = sol['id_rol'] == _id_rol_encargado
+        except Rol.DoesNotExist:
+            es_encargado = False
+        es_central = sol['id_almacen'] in _ids_almacen_central()
         if es_encargado and es_central:
             try:
-                from .pdf import generar_pdf_solicitud
-                from .email import enviar_correo_solicitud
-                correo_encargado = request.user.username  # el username es el correo
-                # Construir tupla extendida con correo para email.py
-                sol_con_correo = sol + (correo_encargado,)
+                sol['correo_encargado'] = request.user.username
                 pdf_response = generar_pdf_solicitud(sol, productos)
                 pdf_bytes = pdf_response.content
-                enviar_correo_solicitud(sol_con_correo, productos, pdf_bytes)
+                enviar_correo_solicitud(sol, productos, pdf_bytes)
             except Exception:
                 print("[WARN] No se pudo enviar el correo:", traceback.format_exc())
 
         return JsonResponse({
             "status": "success",
             "solicitud": {
-                "id_solicitud":   sol[0],
-                "id_almacen":     sol[1],
-                "fecha_creacion": sol[3].strftime("%Y-%m-%d %H:%M"),
-                "matricula":      sol[4] or "N/A",
-                "solicitante":    (sol[5] or "").strip() or "N/A",
-                "cargo":          sol[7] or "N/A",
-                "estatus":        sol[8],
+                "id_solicitud":   sol['id_solicitud'],
+                "id_almacen":     sol['id_almacen'],
+                "fecha_creacion": sol['fecha_solicitud'].strftime("%Y-%m-%d %H:%M"),
+                "matricula":      sol['id_personal'] or "N/A",
+                "solicitante":    (sol['nombre'] or "").strip() or "N/A",
+                "cargo":          sol['nombre_rol'] or "N/A",
+                "estatus":        sol['nombre_estatus'],
                 "productos": [
-                    {"id_producto": p[0], "nombre": p[1], "cantidad": p[2]}
+                    {"id_producto": p['id_producto'], "nombre": p['nombre_producto'], "cantidad": p['cantidad']}
                     for p in productos
                 ],
             }
@@ -138,29 +154,29 @@ def buscar_solicitud(request, solicitud_id):
     try:
         with connection.cursor() as cursor:
             cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
-            sol = cursor.fetchone()
+            sol = _row_to_dict(cursor, cursor.fetchone())
 
         if not sol:
             return JsonResponse({"error": "Solicitud no encontrada"}, status=404)
 
         with connection.cursor() as cursor:
             cursor.callproc("sp_productos_solicitud", [solicitud_id])
-            productos = cursor.fetchall()
+            productos = _rows_to_dicts(cursor, cursor.fetchall())
 
         return JsonResponse({
             "status": "success",
             "solicitud": {
-                "id_solicitud":   sol[0],
-                "id_almacen":     sol[1],
-                "almacen":        sol[2],
-                "fecha_creacion": sol[3].strftime("%Y-%m-%d %H:%M"),
-                "matricula":      sol[4] or "",
-                "solicitante":    (sol[5] or "").strip() or "N/A",
-                "id_rol":         sol[6] or "",
-                "cargo":          sol[7] or "N/A",
-                "estatus":        sol[8],
+                "id_solicitud":   sol['id_solicitud'],
+                "id_almacen":     sol['id_almacen'],
+                "almacen":        sol['tipo_almacen'],
+                "fecha_creacion": sol['fecha_solicitud'].strftime("%Y-%m-%d %H:%M"),
+                "matricula":      sol['id_personal'] or "",
+                "solicitante":    (sol['nombre'] or "").strip() or "N/A",
+                "id_rol":         sol['id_rol'] or "",
+                "cargo":          sol['nombre_rol'] or "N/A",
+                "estatus":        sol['nombre_estatus'],
                 "productos": [
-                    {"id_producto": p[0], "nombre": p[1], "cantidad": p[2]}
+                    {"id_producto": p['id_producto'], "nombre": p['nombre_producto'], "cantidad": p['cantidad']}
                     for p in productos
                 ],
             }
@@ -243,20 +259,21 @@ def registrar_recepcion(request, solicitud_id):
         # Si hubo entrega parcial, enviar correo a central
         if id_solicitud_nueva:
             try:
-                from .email import enviar_correo_entrega_parcial
                 with connection.cursor() as cursor:
                     cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
-                    sol = cursor.fetchone()
+                    sol = _row_to_dict(cursor, cursor.fetchone())
                 with connection.cursor() as cursor:
                     cursor.callproc("sp_productos_solicitud", [solicitud_id])
-                    prods_orig = cursor.fetchall()
+                    prods_orig = _rows_to_dicts(cursor, cursor.fetchall())
 
                 # Calcular faltantes: (id, nombre, solicitado, recibido, faltante)
                 recibidos = {str(p['id_producto']): p['cantidad_recibida'] for p in productos}
                 faltantes = [
-                    (p[0], p[1], p[2], recibidos.get(str(p[0]), 0), p[2] - recibidos.get(str(p[0]), 0))
+                    (p['id_producto'], p['nombre_producto'], p['cantidad'],
+                     recibidos.get(str(p['id_producto']), 0),
+                     p['cantidad'] - recibidos.get(str(p['id_producto']), 0))
                     for p in prods_orig
-                    if p[2] - recibidos.get(str(p[0]), 0) > 0
+                    if p['cantidad'] - recibidos.get(str(p['id_producto']), 0) > 0
                 ]
                 correo_encargado = request.user.username
                 enviar_correo_entrega_parcial(sol, faltantes, id_solicitud_nueva, correo_encargado)
@@ -312,31 +329,30 @@ def buscar_personal_qr(request):
 
 @login_required
 def exportar_pdf(request, solicitud_id):
-    from .pdf import generar_pdf_solicitud
     try:
         with connection.cursor() as cursor:
             cursor.callproc("sp_cabecera_solicitud", [solicitud_id])
-            sol = cursor.fetchone()
+            sol = _row_to_dict(cursor, cursor.fetchone())
         if not sol:
             return HttpResponse("Solicitud no encontrada", status=404)
         with connection.cursor() as cursor:
             cursor.callproc("sp_productos_solicitud", [solicitud_id])
-            productos = cursor.fetchall()
+            productos = _rows_to_dicts(cursor, cursor.fetchall())
         with connection.cursor() as cursor:
             cursor.callproc("sp_datos_gestion", [solicitud_id])
-            gestion = cursor.fetchone()
+            gestion = _row_to_dict(cursor, cursor.fetchone())
     except Exception as e:
         return HttpResponse(f"Error: {e}", status=400)
 
-    if gestion and gestion[1]:
-        fecha_gestion = gestion[0]
-        nombre_gestor = f"{gestion[2]} {gestion[3]}"
-        if gestion[4]:
-            nombre_gestor += f" {gestion[4]}"
+    if gestion and gestion['id_personal']:
+        fecha_gestion = gestion['fecha_gestion']
+        nombre_gestor = f"{gestion['nombre_personal']} {gestion['apellido_paterno']}"
+        if gestion['apellido_materno']:
+            nombre_gestor += f" {gestion['apellido_materno']}"
         gestor = {
-            'id':     gestion[1],
+            'id':     gestion['id_personal'],
             'nombre': nombre_gestor,
-            'cargo':  gestion[5] or '—',
+            'cargo':  gestion['nombre_rol'] or '—',
         }
     else:
         fecha_gestion = None

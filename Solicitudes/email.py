@@ -10,12 +10,12 @@ def enviar_correo_solicitud(sol, productos, pdf_bytes):
     productos — filas de sp_productos_solicitud
     pdf_bytes — bytes del PDF generado
     """
-    id_sol      = sol[0]
-    almacen     = sol[2] or "Almacén Central"
-    fecha_dt    = sol[3]
-    solicitante = (sol[5] or "").strip() or "N/A"
-    cargo       = sol[7] or "N/A"
-    correo_encargado = sol[10] if len(sol) > 10 else None
+    id_sol      = sol['id_solicitud']
+    almacen     = sol['tipo_almacen'] or "Almacén Central"
+    fecha_dt    = sol['fecha_solicitud']
+    solicitante = (sol['nombre'] or "").strip() or "N/A"
+    cargo       = sol['nombre_rol'] or "N/A"
+    correo_encargado = sol.get('correo_encargado')
 
     folio_ref = f"FOLIO-{str(id_sol).zfill(5)}"
     fecha_str = fecha_dt.strftime("%d/%m/%Y %H:%M")
@@ -29,7 +29,7 @@ def enviar_correo_solicitud(sol, productos, pdf_bytes):
     asunto = f"Solicitud de reabastecimiento {folio_ref} — {almacen}"
 
     lista_productos = "\n".join(
-        f"  • {p[1]} — Cantidad: {p[2]}" for p in productos
+        f"  • {p['nombre_producto']} — Cantidad: {p['cantidad']}" for p in productos
     )
 
     cuerpo = f"""Estimado equipo del Almacén Central,
@@ -73,10 +73,10 @@ def enviar_correo_entrega_parcial(sol, faltantes, id_solicitud_nueva, correo_enc
     id_solicitud_nueva — ID de la solicitud de seguimiento generada
     correo_encargado  — correo del encargado que registró la recepción
     """
-    id_sol      = sol[0]
-    almacen     = sol[2] or "Almacén"
-    fecha_dt    = sol[3]
-    solicitante = (sol[5] or "").strip() or "N/A"
+    id_sol      = sol['id_solicitud']
+    almacen     = sol['tipo_almacen'] or "Almacén"
+    fecha_dt    = sol['fecha_solicitud']
+    solicitante = (sol['nombre'] or "").strip() or "N/A"
 
     folio_orig  = f"FOLIO-{str(id_sol).zfill(5)}"
     folio_nuevo = f"FOLIO-{str(id_solicitud_nueva).zfill(5)}"

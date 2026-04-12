@@ -120,14 +120,14 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
     Recibe la fila de cabecera (sol) y las filas de productos,
     y devuelve un HttpResponse con el PDF generado.
     """
-    id_sol      = sol[0]
-    almacen     = sol[2] or "—"
-    fecha_dt    = sol[3]
-    matricula   = sol[4] or "N/A"
-    solicitante = (sol[5] or "").strip() or "N/A"
-    cargo       = sol[7] or "N/A"
-    estatus     = sol[8] or "SOLICITADA"
-    obs         = (sol[9] or "").strip() or "Sin observaciones"
+    id_sol      = sol['id_solicitud']
+    almacen     = sol['tipo_almacen'] or "—"
+    fecha_dt    = sol['fecha_solicitud']
+    matricula   = sol['id_personal'] or "N/A"
+    solicitante = (sol['nombre'] or "").strip() or "N/A"
+    cargo       = sol['nombre_rol'] or "N/A"
+    estatus     = sol['nombre_estatus'] or "SOLICITADA"
+    obs         = (sol['observaciones_solicitud'] or "").strip() or "Sin observaciones"
 
     fecha_str = fecha_dt.strftime("%d/%m/%Y")
     hora_str  = fecha_dt.strftime("%H:%M")
@@ -258,19 +258,19 @@ def generar_pdf_solicitud(sol, productos, aprobador=None, fecha_aprobacion=None)
     total_items = 0
     _filas_parciales = []  # índices de filas con entrega parcial (para resaltar)
     for i, p in enumerate(productos, 1):
-        total_items += p[2]
-        cant_rec = p[3] if len(p) > 3 else None
+        total_items += p['cantidad']
+        cant_rec = p.get('cantidad_recibida')
         fila = [
             Paragraph(f"{i:02d}", s_td),
-            Paragraph(str(p[0]), s_td),
-            Paragraph(str(p[1]), s_td),
-            Paragraph(str(p[2]), s_td_r),
+            Paragraph(str(p['id_producto']), s_td),
+            Paragraph(str(p['nombre_producto']), s_td),
+            Paragraph(str(p['cantidad']), s_td_r),
         ]
         if _parcial:
-            es_parcial_fila = cant_rec is not None and cant_rec < p[2]
+            es_parcial_fila = cant_rec is not None and cant_rec < p['cantidad']
             if es_parcial_fila:
                 _filas_parciales.append(i)  # fila i+1 en prod_data (header es 0)
-            fila[3] = Paragraph(str(p[2]), s_td_parcial if es_parcial_fila else s_td_r)
+            fila[3] = Paragraph(str(p['cantidad']), s_td_parcial if es_parcial_fila else s_td_r)
             fila.append(Paragraph(str(cant_rec if cant_rec is not None else '—'), s_td_recibido))
         elif _con_estado:
             fila.append(Paragraph(_icono, s_td_icon))

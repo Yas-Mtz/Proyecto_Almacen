@@ -93,24 +93,7 @@ def gestiondeproductos(request):
         status_code = 200 if result['status'] == 'success' else 404
         return JsonResponse(result, status=status_code)
 
-    # GET — página principal
-    ultimo_producto = Producto.objects.order_by('-id_producto').first()
-    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
-    try:
-        persona = Personal.objects.get(correo=request.user.username)
-        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
-    except Personal.DoesNotExist:
-        persona_nombre = request.user.username
-
-    context = {
-        'estatus_list': Estatus.objects.all(),
-        'categorias_list': CategoriaProducto.objects.all(),
-        'marcas_list': Marca.objects.all(),
-        'unidades_list': UnidadMedida.objects.all(),
-        'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
-        'persona_nombre': persona_nombre,
-        'user_role': user_role,
-    }
+    # GET — página principal (React la obtiene vía /GestiondeProductos/datos/)
     return render(request, 'gestiondeproductos.html')
 
 
