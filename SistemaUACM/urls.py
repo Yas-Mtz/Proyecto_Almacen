@@ -12,6 +12,7 @@ urlpatterns = [
     path('GestiondeProductos/', include('GestiondeProductos.urls')),
     path('Reportes/', include('Reportes.urls')),
     path('Solicitudes/', include('Solicitudes.urls')),
+    path('GestiondePersonal/', include('GestiondePersonal.urls')),
 ]
 
 if settings.DEBUG:

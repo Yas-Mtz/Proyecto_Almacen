@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'Login',
     'GestiondeProductos',
     'Reportes',
-    'Solicitudes'
+    'Solicitudes',
+    'GestiondePersonal',
 ]
 
 MIDDLEWARE = [
