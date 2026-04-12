@@ -78,7 +78,7 @@ def detalle_personal(request, id_personal):
         .select_related('id_estatus', 'id_almacen', 'gestionado_por')
         .prefetch_related('detallesolicitud_set__id_producto')
         .filter(id_personal=persona)
-        .order_by('fecha_solicitud')
+        .order_by('-fecha_solicitud')
     )
 
     timeline = []

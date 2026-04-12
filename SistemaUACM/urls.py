@@ -2,9 +2,11 @@ from django.conf.urls.static import static
 from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 from . import controllers as views
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='/login/', permanent=False)),
     path('admin/', admin.site.urls),
     path('login/', include('Login.urls')),  # sigue igual
     path('home/', views.home, name='home'),

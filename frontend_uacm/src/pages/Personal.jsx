@@ -16,9 +16,10 @@ function TlItem({ ev }) {
         <i className={`fas ${cfg.icon}`}></i>
       </div>
       <div className="tl-body">
-        <div className="tl-folio">
+        <a className="tl-folio" href={`/Solicitudes/?id=${ev.id_solicitud}`} title="Ver solicitud">
           FOLIO-{String(ev.id_solicitud).padStart(5, '0')}
-        </div>
+          <i className="fas fa-external-link-alt" style={{ fontSize: '.65rem', marginLeft: '.3rem', opacity: .6 }}></i>
+        </a>
         <div className="tl-fecha">{ev.fecha}</div>
         <span className={`tl-estatus ${cfg.badge}`}>{ev.estatus}</span>
 
@@ -211,7 +212,7 @@ export default function Personal() {
         </div>
 
         {/* Contenido principal */}
-        <div className={seleccionado ? 'layout-split' : ''}>
+        <div className={seleccionado ? 'layout-split panel-abierto' : ''}>
 
           {/* Tabla de personal */}
           <div className="tabla-card">
@@ -222,9 +223,9 @@ export default function Personal() {
                   <th>Matrícula</th>
                   <th>Nombre</th>
                   <th>Cargo</th>
-                  <th>Categoría Salarial</th>
+                  <th className="col-secundaria">Categoría Salarial</th>
                   <th>Correo</th>
-                  <th>Teléfono</th>
+                  <th className="col-secundaria">Teléfono</th>
                 </tr>
               </thead>
               <tbody>
@@ -251,9 +252,9 @@ export default function Personal() {
                     <td>{p.id_personal}</td>
                     <td><strong>{p.nombre_completo}</strong></td>
                     <td><span className="badge-rol">{p.cargo}</span></td>
-                    <td>{p.categoria_salarial}</td>
+                    <td className="col-secundaria">{p.categoria_salarial}</td>
                     <td>{p.correo}</td>
-                    <td>{p.telefono}</td>
+                    <td className="col-secundaria">{p.telefono}</td>
                   </tr>
                 ))}
               </tbody>

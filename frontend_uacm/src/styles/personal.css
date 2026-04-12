@@ -484,11 +484,17 @@ tbody tr.selected { background: #fde8e8; }
 .tl-body { flex: 1; min-width: 0; }
 
 .tl-folio {
+    display: inline-flex;
+    align-items: center;
     font-size: 0.8rem;
     font-weight: 800;
     color: var(--primary);
     margin-bottom: 0.1rem;
+    text-decoration: none;
+    transition: opacity 0.2s;
 }
+
+.tl-folio:hover { opacity: 0.7; text-decoration: underline; }
 
 .tl-fecha {
     font-size: 0.75rem;
@@ -568,21 +574,32 @@ tbody tr.selected { background: #fde8e8; }
 }
 
 /* ── Footer ─────────────────────────────────────────────────── */
-.footer {
+footer.footer {
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(30px);
+    padding: 1.5rem 2rem;
     text-align: center;
-    padding: 2rem;
-    color: rgba(255,255,255,.4);
-    font-size: 0.8rem;
-    margin-top: 1rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.1);
+    margin-top: auto;
     position: relative;
     z-index: 1;
 }
 
-.footer-copy {
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    color: rgba(255,255,255,.25);
+footer.footer p {
+    color: #666;
+    font-weight: 500;
+    font-style: italic;
+    margin-bottom: 0.3rem;
 }
+
+.footer-copy {
+    font-size: 0.85rem;
+    font-style: normal;
+    color: #999;
+}
+
+/* ── Columnas secundarias: se ocultan cuando el panel está abierto ── */
+.panel-abierto .col-secundaria { display: none; }
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 900px) {
