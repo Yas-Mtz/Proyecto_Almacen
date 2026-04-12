@@ -24,7 +24,7 @@ SistemaUACM is a Django-based inventory management system with a React frontend 
 
 ### Database
 - MySQL 8.0 (configured in docker-compose.yml)
-- Models use `managed = False` indicating database-first approach
+- Models are Django-managed — schema changes via `python manage.py makemigrations` + `migrate`
 - Database connection via `django-environ` and `.env` file
 
 ## Development Commands
@@ -95,8 +95,8 @@ npx playwright test
 ## Key Architecture Patterns
 
 ### Database Models
-- All models inherit from Django's Model but use `managed = False`
-- Custom `db_column` attributes map to existing database schema
+- All models inherit from Django's Model and are fully managed via migrations
+- Custom `db_column` attributes map to the database schema
 - Foreign key relationships preserve database integrity
 - Models include business logic methods (e.g., `necesita_reabastecimiento` property)
 
@@ -136,7 +136,7 @@ DEBUG=True
 
 ## Development Workflow
 
-1. Database changes require external schema modifications (managed = False)
+1. Database changes via `makemigrations` + `migrate` — Django manages the schema
 2. Frontend changes built and committed to `frontend_uacm/build/`
 3. Static files collected via Django management command
 4. Tests include both unit tests and Playwright functional tests
@@ -144,7 +144,7 @@ DEBUG=True
 
 ## Special Considerations
 
-- Models are not Django-managed; schema changes happen externally
+- Schema changes via Django migrations (`makemigrations` + `migrate`)
 - React build artifacts committed to repository
 - Spanish localization enabled (`LANGUAGE_CODE = 'es'`)
 - Mexico City timezone configured
