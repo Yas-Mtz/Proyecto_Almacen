@@ -443,9 +443,6 @@ export default function GestionDeProductos() {
   // ── Render ────────────────────────────────────────────────────────────────
   if (!datos) return <p style={{ padding: '2rem' }}>Cargando...</p>
 
-  const esEncargado = datos.user_role?.toLowerCase().includes('encargado')
-  const bloqueado   = !esEncargado
-
   const semaforoLabel = {
     verde:    { text: 'Stock suficiente', cls: 'verde' },
     amarillo: { text: 'Stock moderado — considere reabastecer pronto', cls: 'amarillo' },
@@ -513,12 +510,7 @@ export default function GestionDeProductos() {
               <input type="hidden" name="action" value={form.action} />
               <input type="hidden" id="current_product_id" value={form.id_producto} />
 
-              {bloqueado && (
-                <div className="sin-permiso-banner">
-                  <i className="fas fa-lock"></i>
-                  <span>No tienes permisos para registrar o modificar productos. Solo puedes consultar.</span>
-                </div>
-              )}
+
 
               {/* Datos Generales */}
               <div className="form-section">
@@ -676,7 +668,7 @@ export default function GestionDeProductos() {
               <input type="file" id="imagen_producto" accept="image/*" style={{ display: 'none' }} ref={imagenInputRef} onChange={handleImagenChange} />
 
               <div className="form-actions">
-                <button type="button" id="btn-guardar" className="btn btn-primary" disabled={validacion.disabled || loading || bloqueado} onClick={handleGuardar}>
+                <button type="button" id="btn-guardar" className="btn btn-primary" disabled={validacion.disabled || loading} onClick={handleGuardar}>
                   <i className="fas fa-save"></i> {modo === 'edit' ? 'Actualizar Producto' : 'Guardar Producto'}
                 </button>
               </div>
@@ -710,20 +702,13 @@ export default function GestionDeProductos() {
                 <i className={`fas ${qrOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
               </button>
               <div className={`qr-collapsible ${qrOpen ? 'open' : ''}`}>
-                <div className="qr-content">
-                  <div className="qr-info">
-                    <h3><i className="fas fa-info-circle"></i> Información del Producto</h3>
-                    <div className="qr-info-item"><i className="fas fa-barcode"></i><span>ID:</span> <span>{qr.id}</span></div>
-                    <div className="qr-info-item"><i className="fas fa-tag"></i><span>Nombre:</span> <span>{qr.nombre}</span></div>
-                  </div>
-                  <div className="qr-code">
-                    {!qr.url && <div className="qr-placeholder"><i className="fas fa-qrcode"></i><p>Genera un código QR</p></div>}
-                    {qr.url && <img src={qr.url} alt="Código QR del producto" loading="lazy" width={200} height={200} />}
-                    <button className="btn btn-download" disabled={!qr.url}
-                      onClick={() => { if (!qr.url) return; const a = document.createElement('a'); a.href = qr.url; a.download = `QR_${qr.id}_${qr.nombre.replace(/\s+/g,'_')}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a) }}>
-                      <i className="fas fa-download"></i> Descargar QR
-                    </button>
-                  </div>
+                <div className="qr-code">
+                  {!qr.url && <div className="qr-placeholder"><i className="fas fa-qrcode"></i><p>Genera un código QR</p></div>}
+                  {qr.url && <img src={qr.url} alt="Código QR del producto" loading="lazy" width={200} height={200} />}
+                  <button className="btn btn-download" disabled={!qr.url}
+                    onClick={() => { if (!qr.url) return; const a = document.createElement('a'); a.href = qr.url; a.download = `QR_${qr.id}_${qr.nombre.replace(/\s+/g,'_')}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a) }}>
+                    <i className="fas fa-download"></i> Descargar QR
+                  </button>
                 </div>
               </div>
             </div>
