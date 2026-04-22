@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'Login',
     'GestiondeProductos',
     'Reportes',
-    'Solicitudes'
+    'Solicitudes',
+    'GestiondePersonal',
 ]
 
 MIDDLEWARE = [
@@ -146,8 +147,8 @@ CSRF_COOKIE_NAME = 'csrftoken'
 # Tiempo de expiración de la sesión
 # Almacenamiento en base de datos
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-# Tiempo en segundos que la sesión será válida (1 hora)
-SESSION_COOKIE_AGE = 1800 # segundos
+# Tiempo en segundos que la sesión será válida (2 horas)
+SESSION_COOKIE_AGE = 7200
 # Cierra la sesión cuando se cierre el navegador
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 

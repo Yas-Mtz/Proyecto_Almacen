@@ -5,9 +5,6 @@ urlpatterns = [
     # Ruta principal de login (url: /login/)
     path('', controllers.login, name='login'),
 
-    # Página principal después del login (url: /login/home/)
-    path('home/', controllers.home, name='home'),
-
     # Logout (url: /login/logout/)
     path('logout/', controllers.logout, name='logout'),
 

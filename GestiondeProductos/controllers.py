@@ -7,13 +7,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import Producto, Estatus, CategoriaProducto, Marca, UnidadMedida
-from SistemaUACM.models import Personal
 from .command import (
     AgregarProductoCommand, ActualizarProductoCommand,
     generar_qr_temp, cambiar_estatus_producto, buscar_producto_por_id,
     verificar_nombre_producto, actualizar_stock_producto
 )
+from .repository import ProductoRepository
 
 logger = logging.getLogger(__name__)
 
@@ -93,24 +92,7 @@ def gestiondeproductos(request):
         status_code = 200 if result['status'] == 'success' else 404
         return JsonResponse(result, status=status_code)
 
-    # GET — página principal
-    ultimo_producto = Producto.objects.order_by('-id_producto').first()
-    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
-    try:
-        persona = Personal.objects.get(correo=request.user.username)
-        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
-    except Personal.DoesNotExist:
-        persona_nombre = request.user.username
-
-    context = {
-        'estatus_list': Estatus.objects.all(),
-        'categorias_list': CategoriaProducto.objects.all(),
-        'marcas_list': Marca.objects.all(),
-        'unidades_list': UnidadMedida.objects.all(),
-        'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
-        'persona_nombre': persona_nombre,
-        'user_role': user_role,
-    }
+    # GET — página principal (React la obtiene vía /GestiondeProductos/datos/)
     return render(request, 'gestiondeproductos.html')
 
 
@@ -134,29 +116,9 @@ def verificar_producto(request):
 @login_required(login_url='')
 def datos_gestion(request):
     """API endpoint para React: catálogos e info de usuario"""
-    ultimo_producto = Producto.objects.order_by('-id_producto').first()
     user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
-    try:
-        persona = Personal.objects.get(correo=request.user.username)
-        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
-    except Personal.DoesNotExist:
-        persona_nombre = request.user.username
-
-    try:
-        estatus_activo = Estatus.objects.get(nombre_estatus__icontains='activo').id_estatus
-    except Exception:
-        estatus_activo = None
-
-    return JsonResponse({
-        'next_id': ultimo_producto.id_producto + 1 if ultimo_producto else 1,
-        'persona_nombre': persona_nombre,
-        'user_role': user_role,
-        'estatus_activo': estatus_activo,
-        'estatus_list': [{'id': e.id_estatus, 'nombre': e.nombre_estatus} for e in Estatus.objects.all()],
-        'categorias_list': [{'id': c.id_categoria, 'nombre': c.nombre_categoria} for c in CategoriaProducto.objects.all()],
-        'marcas_list': [{'id': m.id_marca, 'nombre': m.nombre_marca} for m in Marca.objects.all()],
-        'unidades_list': [{'id': u.id_unidad, 'nombre': u.nombre_unidad, 'abreviatura': u.abreviatura} for u in UnidadMedida.objects.all()],
-    })
+    data = ProductoRepository.datos_gestion(request.user.username)
+    return JsonResponse({**data, 'user_role': user_role})
 
 
 @login_required
@@ -181,23 +143,21 @@ def crear_producto_rapido(request):
     try:
         data = json.loads(request.body)
 
-        # Estatus inactivo (producto aún no recibido)
-        estatus = Estatus.objects.filter(nombre_estatus__icontains='inactivo').first()
+        estatus = ProductoRepository.estatus_por_nombre('inactivo')
         if not estatus:
             return JsonResponse({'success': False, 'message': 'No se encontró el estatus Inactivo en el catálogo.'}, status=400)
 
-        # Marca "Sin marca" — se crea si no existe
-        marca, _ = Marca.objects.get_or_create(nombre_marca='Sin marca')
+        marca   = ProductoRepository.marca_sin_marca()
+        next_id = ProductoRepository.siguiente_id()
 
-        ultimo = Producto.objects.order_by('-id_producto').first()
-        next_id = (ultimo.id_producto + 1) if ultimo else 1
+        stock_minimo = int(data.get('stock_minimo', 10) or 10)
 
         command = AgregarProductoCommand(
             id_producto=next_id,
             nombre_producto=data.get('nombre_producto', '').strip(),
             descripcion_producto=data.get('descripcion_producto', ''),
             cantidad=0,
-            stock_minimo=0,
+            stock_minimo=stock_minimo,
             estatus_id=estatus.id_estatus,
             categoria_id=data.get('categoria_id'),
             marca_id=marca.id_marca,

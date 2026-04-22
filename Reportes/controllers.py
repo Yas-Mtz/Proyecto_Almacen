@@ -10,12 +10,6 @@ from SistemaUACM.models import Personal
 @login_required
 def reportes(request):
     """Renderiza la página de reportes"""
-    user_role = request.user.groups.first().name if request.user.groups.exists() else 'Usuario'
-    try:
-        persona = Personal.objects.get(correo=request.user.username)
-        persona_nombre = f"{persona.nombre_personal} {persona.apellido_paterno}"
-    except Personal.DoesNotExist:
-        persona_nombre = request.user.username
     return render(request, 'reportes.html')
 
 

@@ -1,5 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+function statusDotColor(nombre) {
+  const n = (nombre || '').toLowerCase().trim()
+  if (n === 'activo')   return '#28a745'
+  if (n === 'agotado')  return '#dc3545'
+  return '#6c757d'
+}
+
+function prodTemplate(option) {
+  if (!option.id || !window.$) return option.text
+  const status = window.$(option.element).data('status') || ''
+  const color  = statusDotColor(status)
+  return window.$(`<span style="display:flex;align-items:center;gap:6px">
+    <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+    <span>${option.text}</span>
+  </span>`)
+}
+
 function getCookie(name) {
   let value = null
   if (document.cookie)
@@ -11,13 +28,14 @@ function getCookie(name) {
 }
 
 const APP_URLS = {
-  crear_solicitud:    '/Solicitudes/crear/',
-  buscar_personal_qr: '/Solicitudes/buscar-personal/',
-  cancelar_solicitud: '/Solicitudes/cancelar/',
-  aprobar_solicitud:  '/Solicitudes/aprobar/',
-  buscar_solicitud:   '/Solicitudes/buscar/',
-  exportar_pdf:       '/Solicitudes/exportar/pdf/',
-  exportar_csv:       '/Solicitudes/exportar/csv/',
+  crear_solicitud:     '/Solicitudes/crear/',
+  buscar_personal_qr:  '/Solicitudes/buscar-personal/',
+  cancelar_solicitud:  '/Solicitudes/cancelar/',
+  aprobar_solicitud:   '/Solicitudes/aprobar/',
+  buscar_solicitud:    '/Solicitudes/buscar/',
+  exportar_pdf:        '/Solicitudes/exportar/pdf/',
+  registrar_recepcion: '/Solicitudes/recepcion/',
+  limites:             '/Solicitudes/limites/',
 }
 
 const statusMap = {
@@ -27,10 +45,11 @@ const statusMap = {
 }
 
 const clsMap = {
-  SOLICITADA: 'status-solicitado',
-  APROBADA:   'status-aprobado',
-  CANCELADA:  'status-cancelado',
-  COMPLETADA: 'status-completado',
+  SOLICITADA:      'status-solicitado',
+  APROBADA:        'status-aprobado',
+  CANCELADA:       'status-cancelado',
+  ENTREGA_PARCIAL: 'status-parcial',
+  COMPLETADA:      'status-completada',
 }
 
 export default function Solicitud() {
@@ -52,12 +71,19 @@ export default function Solicitud() {
   const [dropdownOpen, setDropdownOpen]       = useState(false)
   const [modalNuevoProd, setModalNuevoProd]   = useState(false)
   const [catalogosModal, setCatalogosModal]   = useState(null)
-  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+  const [modalRecepcion, setModalRecepcion]   = useState(false)
+  const [recepcionItems, setRecepcionItems]   = useState([])
+  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
+  const [modalLimites, setModalLimites]       = useState(false)
+  const [limites, setLimites]                 = useState([])
+  const [formLimite, setFormLimite]           = useState({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
 
-  const qrInputRef  = useRef(null)
-  const rolRef      = useRef(null)
-  const almacenRef  = useRef(null)
-  const productoRef = useRef(null)
+  const qrInputRef      = useRef(null)
+  const rolRef          = useRef(null)
+  const almacenRef      = useRef(null)
+  const productoRef     = useRef(null)
+  const limiteProdRef   = useRef(null)
+  const limitePeriRef   = useRef(null)
 
   // ── Callback refs: Select2 se inicializa en el mismo commit que el elemento ──
   const rolCallbackRef = useCallback(el => {
@@ -77,9 +103,10 @@ export default function Solicitud() {
   const productoCallbackRef = useCallback(el => {
     productoRef.current = el
     if (!el || !window.$ || !window.$.fn?.select2) return
-    window.$(el).select2({ placeholder: 'Seleccione un producto', width: '100%' })
+    window.$(el).select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
       .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
   }, [])
+
 
   // ── Cargar catálogos + alertas de stock ───────────────────────────────────
   useEffect(() => {
@@ -97,6 +124,37 @@ export default function Solicitud() {
           const yaVisto = sessionStorage.getItem('alertas_stock_vistas')
           if (!yaVisto) setModalAlertas(true)
         }
+      })
+      .catch(() => {})
+  }, [])
+
+  // ── Auto-buscar si viene ?id= en la URL (desde Gestión de Personal) ─────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('id')
+    if (!id) return
+    setBuscarId(id)
+    fetch(`/Solicitudes/buscar/${id}/`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.solicitud) return
+        const sol = data.solicitud
+        setForm({
+          matricula:     String(sol.matricula || ''),
+          nombre:        sol.solicitante || '',
+          id_rol:        String(sol.id_rol || ''),
+          id_almacen:    String(sol.id_almacen || ''),
+          observaciones: '',
+        })
+        setProductos(sol.productos)
+        setPersonalValido(true)
+        setSolicitudActual(sol)
+        setCheckedItems(new Set())
+        setDesdeAlertas(false)
+        // Scroll suave hasta la sección de búsqueda
+        setTimeout(() => {
+          document.querySelector('.buscar-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 300)
       })
       .catch(() => {})
   }, [])
@@ -132,12 +190,29 @@ export default function Solicitud() {
     window.$(productoRef.current).val(prodSel.id_producto).trigger('change.select2')
   }, [prodSel.id_producto])
 
+  // ── Select2 modal Límites ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!modalLimites || !window.$ || !window.$.fn?.select2) return
+    const $prod = window.$(limiteProdRef.current)
+    const $peri = window.$(limitePeriRef.current)
+    $prod.select2({ placeholder: 'Seleccione...', width: '100%', dropdownParent: window.$('body') })
+      .on('change.select2', e => setFormLimite(f => ({ ...f, id_producto: e.target.value })))
+    $peri.select2({ width: '100%', minimumResultsForSearch: Infinity, dropdownParent: window.$('body') })
+      .on('change.select2', e => setFormLimite(f => ({ ...f, periodo: e.target.value })))
+    $prod.val(formLimite.id_producto).trigger('change.select2')
+    $peri.val(formLimite.periodo).trigger('change.select2')
+    return () => {
+      if ($prod.data('select2')) $prod.select2('destroy')
+      if ($peri.data('select2')) $peri.select2('destroy')
+    }
+  }, [modalLimites])
+
   // ── Reinicializar Select2 de producto cuando cambia la lista o el almacén ──
   useEffect(() => {
     if (!window.$ || !productoRef.current) return
     const $el = window.$(productoRef.current)
     if ($el.data('select2')) $el.select2('destroy')
-    $el.select2({ placeholder: 'Seleccione un producto', width: '100%' })
+    $el.select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
       .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
     // Limpiar selección si el producto actual quedó fuera del filtro
     if (prodSel.id_producto) {
@@ -159,11 +234,11 @@ export default function Solicitud() {
     : (datos?.almacenes || []).filter(a => a.tipo_almacen.toLowerCase().includes('cuautepec'))
 
   // Filtrar productos según almacén destino:
-  // Central (id=1) → todos; Cuautepec u otro → excluir Inactivo (2) y Agotado (3)
-  const ESTATUS_EXCLUIDOS_CUAUTEPEC = [2, 3]
-  const productosFiltrados = String(form.id_almacen) === '1'
+  // Central → todos; otro → solo productos con estatus Activo
+  const almacenEsCentral   = datos?.ids_almacen_central?.includes(parseInt(form.id_almacen)) ?? false
+  const productosFiltrados = almacenEsCentral
     ? (datos?.productos || [])
-    : (datos?.productos || []).filter(p => !ESTATUS_EXCLUIDOS_CUAUTEPEC.includes(p.id_estatus))
+    : (datos?.productos || []).filter(p => p.id_estatus === datos?.id_estatus_activo)
 
   // ── Reinicializar Select2 de almacén cuando cambian las opciones ───────────
   useEffect(() => {
@@ -301,7 +376,8 @@ export default function Solicitud() {
     sessionStorage.removeItem('alertas_stock_vistas')
     setModalAlertas(false)
     setDesdeAlertas(true)
-    setForm(f => ({ ...f, id_almacen: '1' }))
+    const idCentral = datos?.ids_almacen_central?.[0]
+    setForm(f => ({ ...f, id_almacen: idCentral ? String(idCentral) : '' }))
     setProductos(alertasStock.map(a => ({
       id_producto: String(a.id_producto),
       nombre:      a.nombre_producto,
@@ -366,6 +442,57 @@ export default function Solicitud() {
       }
     } catch {
       window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al aprobar la solicitud.' })
+    }
+  }
+
+  // ── Registrar recepción ────────────────────────────────────────────────────
+  const abrirModalRecepcion = () => {
+    if (!solicitudActual) return
+    setRecepcionItems(
+      solicitudActual.productos.map(p => ({
+        id_producto:      p.id_producto,
+        nombre:           p.nombre,
+        cantidad:         p.cantidad,
+        cantidad_recibida: p.cantidad,
+      }))
+    )
+    setModalRecepcion(true)
+  }
+
+  const handleConfirmarRecepcion = async () => {
+    const hayError = recepcionItems.some(p => p.cantidad_recibida < 0 || p.cantidad_recibida > p.cantidad)
+    if (hayError) {
+      window.Swal.fire({ icon: 'warning', title: 'Cantidad inválida', text: 'La cantidad recibida no puede ser mayor a la solicitada ni negativa.' })
+      return
+    }
+    try {
+      const res = await fetch(`${APP_URLS.registrar_recepcion}${solicitudActual.id_solicitud}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productos: recepcionItems.map(p => ({ id_producto: p.id_producto, cantidad_recibida: p.cantidad_recibida })) }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        const hayParcial = recepcionItems.some(p => p.cantidad_recibida < p.cantidad)
+        const nuevoEstatus = hayParcial ? 'ENTREGA_PARCIAL' : 'COMPLETADA'
+        setSolicitudActual(s => ({ ...s, estatus: nuevoEstatus }))
+        setModalRecepcion(false)
+        const idNueva = result.id_solicitud_nueva
+        window.Swal.fire({
+          icon: 'success',
+          title: hayParcial ? 'Entrega parcial registrada' : 'Entrega completa registrada',
+          html: hayParcial
+            ? `Algunos productos no llegaron en su totalidad.<br><br>Se generó la solicitud de seguimiento <b>#${idNueva}</b> y se notificó a almacén central.`
+            : 'Todos los productos fueron recibidos correctamente.',
+          timer: hayParcial ? 0 : 2500,
+          showConfirmButton: hayParcial,
+          confirmButtonText: 'Aceptar',
+        })
+      } else {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo registrar la recepción.' })
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al registrar la recepción.' })
     }
   }
 
@@ -473,6 +600,7 @@ export default function Solicitud() {
           descripcion_producto: formNuevoProd.descripcion,
           categoria_id:         formNuevoProd.id_categoria,
           unidad_id:            formNuevoProd.id_unidad,
+          stock_minimo:         parseInt(formNuevoProd.stock_minimo) || 10,
         }),
       })
       const result = await res.json()
@@ -480,7 +608,7 @@ export default function Solicitud() {
         setDatos(d => ({ ...d, productos: [...d.productos, { id_producto: result.id_producto, nombre_producto: result.nombre_producto, cantidad: result.cantidad }] }))
         setProdSel(s => ({ ...s, id_producto: String(result.id_producto) }))
         setModalNuevoProd(false)
-        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '' })
+        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
         window.Swal.fire({ icon: 'success', title: 'Producto creado', text: `"${result.nombre_producto}" registrado correctamente.`, timer: 2000, showConfirmButton: false })
       } else {
         window.Swal.fire({ icon: 'error', title: 'Error', text: result.message })
@@ -525,6 +653,64 @@ export default function Solicitud() {
     window.open(`${APP_URLS.exportar_pdf}${solicitudActual.id_solicitud}/`)
   }
 
+  // ── Gestión de límites ────────────────────────────────────────────────────
+  const abrirModalLimites = async () => {
+    try {
+      const res = await fetch(APP_URLS.limites)
+      const data = await res.json()
+      setLimites(data.limites)
+      setModalLimites(true)
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los límites.' })
+    }
+  }
+
+  const handleGuardarLimite = async () => {
+    if (!formLimite.id_producto) {
+      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Selecciona un producto.' }); return
+    }
+    try {
+      const res = await fetch(APP_URLS.limites, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(formLimite),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        const res2 = await fetch(APP_URLS.limites)
+        const data2 = await res2.json()
+        setLimites(data2.limites)
+        setFormLimite({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
+        window.Swal.fire({ icon: 'success', title: result.created ? 'Límite creado' : 'Límite actualizado', timer: 1500, showConfirmButton: false })
+      } else {
+        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error })
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el límite.' })
+    }
+  }
+
+  const handleEliminarLimite = async (id_limite) => {
+    const conf = await window.Swal.fire({
+      icon: 'question', title: '¿Eliminar límite?',
+      showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'No',
+      confirmButtonColor: '#dc3545',
+    })
+    if (!conf.isConfirmed) return
+    try {
+      const res = await fetch(APP_URLS.limites, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ id_limite }),
+      })
+      if (res.ok) {
+        setLimites(prev => prev.filter(l => l.id_limite !== id_limite))
+      }
+    } catch {
+      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el límite.' })
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
   if (!datos) return <p style={{ padding: '2rem' }}>Cargando...</p>
 
@@ -542,6 +728,20 @@ export default function Solicitud() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {datos.user_role?.toLowerCase().includes('encargado') && (
+              <button
+                type="button"
+                onClick={abrirModalLimites}
+                style={{
+                  background: 'none', border: '1px solid #640404', color: '#640404',
+                  cursor: 'pointer', fontSize: '0.8rem', padding: '4px 10px',
+                  borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                }}
+                title="Gestionar límites de solicitud"
+              >
+                <i className="fas fa-sliders-h"></i> Límites
+              </button>
+            )}
             {campanaVisible && (
               <button
                 type="button"
@@ -585,7 +785,7 @@ export default function Solicitud() {
         <div className="content-wrapper">
 
           {/* Buscar solicitud */}
-          <section className="card">
+          <section className="card buscar-section">
             <h3><i className="fas fa-search"></i> Buscar Solicitud</h3>
             <div className="form-grid">
               <div className="form-group">
@@ -710,7 +910,7 @@ export default function Solicitud() {
                         <select ref={productoCallbackRef}>
                           <option value="">Seleccione un producto</option>
                           {productosFiltrados.map(p => (
-                            <option key={p.id_producto} value={p.id_producto}>
+                            <option key={p.id_producto} value={p.id_producto} data-status={p.nombre_estatus || ''}>
                               {p.nombre_producto} ({p.cantidad})
                             </option>
                           ))}
@@ -811,6 +1011,11 @@ export default function Solicitud() {
                             <i className="fas fa-times-circle"></i> Cancelar
                           </button>
                         )}
+                        {solicitudActual?.estatus === 'APROBADA' && (
+                          <button type="button" className="btn btn-primary" onClick={abrirModalRecepcion}>
+                            <i className="fas fa-clipboard-check"></i> Registrar recepción
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -856,6 +1061,11 @@ export default function Solicitud() {
                   <option value="">Seleccione...</option>
                   {catalogosModal?.unidades_list?.map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.abreviatura})</option>)}
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Stock mínimo</label>
+                <input type="number" min={0} value={formNuevoProd.stock_minimo}
+                  onChange={e => setFormNuevoProd(f => ({ ...f, stock_minimo: e.target.value }))} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
@@ -923,6 +1133,60 @@ export default function Solicitud() {
         </div>
       )}
 
+      {/* Modal Registrar Recepción */}
+      {modalRecepcion && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '580px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto' }}>
+            <h4 style={{ marginBottom: '1.25rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
+              <i className="fas fa-clipboard-check" style={{ color: '#640404' }}></i> Registrar Recepción
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: '#555', marginBottom: '1rem' }}>
+              Indica la cantidad que realmente se recibió de cada producto. Si es menor a lo solicitado se registrará como entrega parcial.
+            </p>
+            <div style={{ overflowY: 'auto', maxHeight: '50vh', border: '1px solid #e5e5e5', borderRadius: '6px', marginBottom: '1.25rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ background: '#6B0F1A', color: '#fff' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Producto</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Solicitado</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Recibido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recepcionItems.map((p, i) => (
+                    <tr key={p.id_producto} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '7px 12px' }}>{p.nombre}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', color: '#555' }}>{p.cantidad}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                        <input
+                          type="number"
+                          min={0}
+                          max={p.cantidad}
+                          value={p.cantidad_recibida}
+                          onChange={e => {
+                            const val = Math.min(p.cantidad, Math.max(0, parseInt(e.target.value) || 0))
+                            setRecepcionItems(prev => prev.map(x => x.id_producto === p.id_producto ? { ...x, cantidad_recibida: val } : x))
+                          }}
+                          style={{ width: '70px', textAlign: 'center', padding: '4px 6px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalRecepcion(false)}>
+                <i className="fas fa-times"></i> Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleConfirmarRecepcion}>
+                <i className="fas fa-check"></i> Confirmar recepción
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QR Overlay */}
       {qrModo && (
         <div className="qr-overlay" style={{ display: 'flex' }}>
@@ -935,6 +1199,81 @@ export default function Solicitud() {
               onClick={() => { setQrModo(null); setQrInput('') }}>
               <i className="fas fa-times"></i> Cancelar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gestión de Límites */}
+      {modalLimites && (
+        <div className="qr-overlay" style={{ display: 'flex', alignItems: 'flex-start', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="qr-box" style={{ maxWidth: '640px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto' }}>
+            <h4 style={{ marginBottom: '1.25rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
+              <i className="fas fa-sliders-h" style={{ color: '#640404' }}></i> Límites de Solicitud por Producto
+            </h4>
+
+            {/* Formulario agregar/actualizar */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 140px auto', gap: '0.75rem', alignItems: 'end', marginBottom: '1.25rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Producto</label>
+                <select ref={limiteProdRef}>
+                  <option value="">Seleccione...</option>
+                  {datos.productos?.map(p => <option key={p.id_producto} value={p.id_producto}>{p.nombre_producto}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Máximo</label>
+                <input type="number" min={1} value={formLimite.cantidad_maxima}
+                  onChange={e => setFormLimite(f => ({ ...f, cantidad_maxima: parseInt(e.target.value) || 1 }))} />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Periodo</label>
+                <select ref={limitePeriRef}>
+                  <option value="diario">Diario</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensual">Mensual</option>
+                </select>
+              </div>
+              <button type="button" className="btn btn-primary" onClick={handleGuardarLimite}>
+                <i className="fas fa-save"></i> Guardar
+              </button>
+            </div>
+
+            {/* Tabla de límites actuales */}
+            <div style={{ overflowY: 'auto', maxHeight: '45vh', border: '1px solid #e5e5e5', borderRadius: '6px', marginBottom: '1rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
+                <thead>
+                  <tr style={{ background: '#6B0F1A', color: '#fff' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Producto</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Máximo</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>Periodo</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'center' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {limites.length === 0 && (
+                    <tr><td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: '#888' }}>Sin límites configurados</td></tr>
+                  )}
+                  {limites.map((l, i) => (
+                    <tr key={l.id_limite} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding: '7px 12px' }}>{l.nombre_producto}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 700 }}>{l.cantidad_maxima}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center', textTransform: 'capitalize' }}>{l.periodo}</td>
+                      <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                        <button type="button" className="btn-remove" onClick={() => handleEliminarLimite(l.id_limite)}>
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalLimites(false)}>
+                <i className="fas fa-times"></i> Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
