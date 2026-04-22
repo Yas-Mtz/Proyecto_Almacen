@@ -42,7 +42,7 @@ body::before {
     position: fixed;
     width: 200%;
     height: 200%;
-    background-image:
+    background-image: 
         radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
         radial-gradient(circle, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 50px 50px, 80px 80px;
@@ -53,13 +53,8 @@ body::before {
 }
 
 @keyframes particleMove {
-    0% {
-        transform: translate(0, 0);
-    }
-
-    100% {
-        transform: translate(50px, 50px);
-    }
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
 }
 
 /* ============================================
@@ -67,15 +62,8 @@ body::before {
    ============================================ */
 
 @keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .header {
@@ -318,7 +306,6 @@ body::before {
         opacity: 0;
         transform: translateY(30px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -672,12 +659,12 @@ select.form-control {
     content: '';
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0);
+    background: rgba(255,255,255,0);
     transition: background 0.2s;
 }
 
 .btn:hover::after {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255,255,255,0.08);
 }
 
 /* Guardar Producto — acción principal */
@@ -712,7 +699,7 @@ select.form-control {
     background: white;
     color: var(--secondary-color);
     border: 2px solid var(--secondary-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .btn-secondary:hover {
@@ -727,7 +714,7 @@ select.form-control {
     background: white;
     color: var(--info-color);
     border: 2px solid var(--info-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .btn-tertiary:hover {
@@ -741,7 +728,7 @@ select.form-control {
     background: white;
     color: var(--success-color);
     border: 2px solid var(--success-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .btn-download:hover {
@@ -890,13 +877,8 @@ select.form-control {
 }
 
 @keyframes modalFadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal-content {
@@ -916,7 +898,6 @@ select.form-control {
         opacity: 0;
         transform: translateY(-50px) scale(0.9);
     }
-
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -1006,7 +987,6 @@ select.form-control {
         transform: translateY(-15px);
         max-height: 0;
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1253,9 +1233,7 @@ footer p {
 }
 
 @keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
 }
 
 /* ============================================
@@ -1576,15 +1554,8 @@ footer p {
 }
 
 @keyframes pulso-rojo {
-
-    0%,
-    100% {
-        box-shadow: 0 0 6px rgba(220, 53, 69, 0.5);
-    }
-
-    50% {
-        box-shadow: 0 0 14px rgba(220, 53, 69, 1);
-    }
+    0%, 100% { box-shadow: 0 0 6px rgba(220, 53, 69, 0.5); }
+    50%       { box-shadow: 0 0 14px rgba(220, 53, 69, 1); }
 }
 
 .semaforo-info {
@@ -1598,17 +1569,9 @@ footer p {
     font-weight: 700;
 }
 
-.semaforo-etiqueta.verde {
-    color: #155724;
-}
-
-.semaforo-etiqueta.amarillo {
-    color: #856404;
-}
-
-.semaforo-etiqueta.rojo {
-    color: #721c24;
-}
+.semaforo-etiqueta.verde   { color: #155724; }
+.semaforo-etiqueta.amarillo { color: #856404; }
+.semaforo-etiqueta.rojo    { color: #721c24; }
 
 .semaforo-detalle {
     color: #6c757d;
@@ -1675,15 +1638,8 @@ footer p {
 }
 
 @keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-6px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Sin permiso banner ────────────────────────────────────────────────── */
@@ -1734,4 +1690,5 @@ footer p {
     font-size: 0.78rem;
     font-weight: 500;
     margin-top: 4px;
+}
 }

@@ -28,7 +28,6 @@ export default function GestionDeProductos() {
   const [buscarId, setBuscarId]         = useState('')
   const [loading, setLoading]           = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [qrOpen, setQrOpen]             = useState(false)
   const [imageModal, setImageModal]     = useState({ open: false, src: '', nombre: '', id: '', categoria: '' })
   const [imagen, setImagen]             = useState({ preview: null, nombre: 'No se seleccionó archivo', nueva: false, file: null })
   const [qr, setQr]                     = useState({ id: '----', nombre: '----', url: null })
@@ -481,9 +480,9 @@ export default function GestionDeProductos() {
 
           {/* ── COLUMNA IZQUIERDA: Formulario ── */}
           <div className="form-container">
-            <h1><i className="fas fa-boxes"></i> Gestión de Productos</h1>
 
-            <div className="form-top-bar">
+            {/* Barra de control: modo + búsqueda */}
+            <div className="control-bar">
               <div
                 className={`modo-indicator ${modo === 'add' ? 'modo-add' : 'modo-edit'}`}
                 onClick={modo === 'edit' ? handleNuevo : undefined}
@@ -493,16 +492,14 @@ export default function GestionDeProductos() {
                 <span>{modo === 'add' ? 'Nuevo producto' : `Editando #${form.id_producto} — ${form.nombre_producto}`}</span>
                 {modo === 'edit' && <><span className="modo-separator">|</span><span className="modo-action"><i className="fas fa-undo"></i> Nuevo</span></>}
               </div>
-            </div>
-
-            {/* Búsqueda */}
-            <div className="search-container" role="search">
-              <input type="text" id="buscar" placeholder="Buscar por ID" className="form-control"
-                value={buscarId} onChange={e => setBuscarId(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleBuscar()} />
-              <button className="search-btn" aria-label="Buscar producto" onClick={handleBuscar}>
-                <i className="fas fa-search"></i>
-              </button>
+              <div className="search-container" role="search">
+                <input type="text" id="buscar" placeholder="Buscar por ID" className="form-control"
+                  value={buscarId} onChange={e => setBuscarId(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleBuscar()} />
+                <button className="search-btn" aria-label="Buscar producto" onClick={handleBuscar}>
+                  <i className="fas fa-search"></i>
+                </button>
+              </div>
             </div>
 
             {/* Formulario */}
@@ -696,20 +693,13 @@ export default function GestionDeProductos() {
             {/* QR */}
             <div className="qr-container">
               <h2><i className="fas fa-qrcode"></i> Código QR del Producto</h2>
-              <button type="button" className="qr-toggle-btn" aria-expanded={qrOpen} onClick={() => setQrOpen(o => !o)}>
-                <i className="fas fa-qrcode"></i>
-                <span>{qrOpen ? 'Ocultar código QR' : 'Ver código QR'}</span>
-                <i className={`fas ${qrOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
-              </button>
-              <div className={`qr-collapsible ${qrOpen ? 'open' : ''}`}>
-                <div className="qr-code">
-                  {!qr.url && <div className="qr-placeholder"><i className="fas fa-qrcode"></i><p>Genera un código QR</p></div>}
-                  {qr.url && <img src={qr.url} alt="Código QR del producto" loading="lazy" width={200} height={200} />}
-                  <button className="btn btn-download" disabled={!qr.url}
-                    onClick={() => { if (!qr.url) return; const a = document.createElement('a'); a.href = qr.url; a.download = `QR_${qr.id}_${qr.nombre.replace(/\s+/g,'_')}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a) }}>
-                    <i className="fas fa-download"></i> Descargar QR
-                  </button>
-                </div>
+              <div className="qr-code">
+                {!qr.url && <div className="qr-placeholder"><i className="fas fa-qrcode"></i><p>Genera un código QR</p></div>}
+                {qr.url && <img src={qr.url} alt="Código QR del producto" loading="lazy" width={200} height={200} />}
+                <button className="btn btn-download" disabled={!qr.url}
+                  onClick={() => { if (!qr.url) return; const a = document.createElement('a'); a.href = qr.url; a.download = `QR_${qr.id}_${qr.nombre.replace(/\s+/g,'_')}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a) }}>
+                  <i className="fas fa-download"></i> Descargar QR
+                </button>
               </div>
             </div>
           </aside>
