@@ -7,7 +7,7 @@ const tarjetas = [
   { titulo: 'Gestión de Productos',  icono: 'fa-boxes',        color: 'blue',   url: '/GestiondeProductos/', stat: 'total_productos',       unidad: 'productos'  },
   { titulo: 'Reportes e Inventario', icono: 'fa-chart-line',   color: 'navy',   url: '/Reportes/',           stat: 'total_solicitudes',     unidad: 'solicitudes'},
   { titulo: 'Solicitud de Artículos',icono: 'fa-shopping-cart',color: 'teal',   url: '/Solicitudes/',        stat: 'solicitudes_pendientes',unidad: 'pendientes' },
-  { titulo: 'Gestión de Personal',   icono: 'fa-users',        color: 'violet', url: '#',                    stat: 'total_personal',        unidad: 'miembros'   },
+  { titulo: 'Gestión de Personal',   icono: 'fa-users',        color: 'violet', url: '/GestiondePersonal/',   stat: 'total_personal',        unidad: 'miembros'   },
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

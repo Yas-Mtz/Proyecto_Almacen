@@ -128,6 +128,37 @@ export default function Solicitud() {
       .catch(() => {})
   }, [])
 
+  // ── Auto-buscar si viene ?id= en la URL (desde Gestión de Personal) ─────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('id')
+    if (!id) return
+    setBuscarId(id)
+    fetch(`/Solicitudes/buscar/${id}/`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.solicitud) return
+        const sol = data.solicitud
+        setForm({
+          matricula:     String(sol.matricula || ''),
+          nombre:        sol.solicitante || '',
+          id_rol:        String(sol.id_rol || ''),
+          id_almacen:    String(sol.id_almacen || ''),
+          observaciones: '',
+        })
+        setProductos(sol.productos)
+        setPersonalValido(true)
+        setSolicitudActual(sol)
+        setCheckedItems(new Set())
+        setDesdeAlertas(false)
+        // Scroll suave hasta la sección de búsqueda
+        setTimeout(() => {
+          document.querySelector('.buscar-section')?.scrollIntoView({ behavior: 'smooth' })
+        }, 300)
+      })
+      .catch(() => {})
+  }, [])
+
   // ── Foco en input QR al abrir overlay ─────────────────────────────────────
   useEffect(() => {
     if (qrModo && qrInputRef.current) {
@@ -754,7 +785,7 @@ export default function Solicitud() {
         <div className="content-wrapper">
 
           {/* Buscar solicitud */}
-          <section className="card">
+          <section className="card buscar-section">
             <h3><i className="fas fa-search"></i> Buscar Solicitud</h3>
             <div className="form-grid">
               <div className="form-group">

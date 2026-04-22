@@ -14,6 +14,7 @@ export default defineConfig({
         gestiondeproductos: resolve(__dirname, 'gestiondeproductos.html'),
         solicitud:          resolve(__dirname, 'solicitud.html'),
         reportes:           resolve(__dirname, 'reportes.html'),
+        personal:           resolve(__dirname, 'personal.html'),
       }
     }
   },
