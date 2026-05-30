@@ -1,42 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-
-function statusDotColor(nombre) {
-  const n = (nombre || '').toLowerCase().trim()
-  if (n === 'activo')   return '#28a745'
-  if (n === 'agotado')  return '#dc3545'
-  return '#6c757d'
-}
-
-function prodTemplate(option) {
-  if (!option.id || !window.$) return option.text
-  const status = window.$(option.element).data('status') || ''
-  const color  = statusDotColor(status)
-  return window.$(`<span style="display:flex;align-items:center;gap:6px">
-    <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
-    <span>${option.text}</span>
-  </span>`)
-}
-
-function getCookie(name) {
-  let value = null
-  if (document.cookie)
-    document.cookie.split(';').forEach(c => {
-      const t = c.trim()
-      if (t.startsWith(name + '=')) value = decodeURIComponent(t.substring(name.length + 1))
-    })
-  return value
-}
-
-const APP_URLS = {
-  crear_solicitud:     '/Solicitudes/crear/',
-  buscar_personal_qr:  '/Solicitudes/buscar-personal/',
-  cancelar_solicitud:  '/Solicitudes/cancelar/',
-  aprobar_solicitud:   '/Solicitudes/aprobar/',
-  buscar_solicitud:    '/Solicitudes/buscar/',
-  exportar_pdf:        '/Solicitudes/exportar/pdf/',
-  registrar_recepcion: '/Solicitudes/recepcion/',
-  limites:             '/Solicitudes/limites/',
-}
+import { useState, useEffect } from 'react'
+import { useDatos } from '../hooks/useDatos'
+import { useSolicitud } from '../hooks/useSolicitud'
+import { useQr } from '../hooks/useQr'
+import { useNuevoProducto } from '../hooks/useNuevoProducto'
+import { useRecepcion } from '../hooks/useRecepcion'
+import { useLimites } from '../hooks/useLimites'
 
 const statusMap = {
   ok:       { cls: 'personal-ok',      html: '<i class="fas fa-check-circle"></i> Personal encontrado' },
@@ -53,120 +21,30 @@ const clsMap = {
 }
 
 export default function Solicitud() {
-  const [datos, setDatos]                     = useState(null)
-  const [form, setForm]                       = useState({ matricula: '', nombre: '', id_rol: '', id_almacen: '', observaciones: '' })
-  const [productos, setProductos]             = useState([])
-  const [prodSel, setProdSel]                 = useState({ id_producto: '', cantidad: 1 })
-  const [solicitudActual, setSolicitudActual] = useState(null)
-  const [personalValido, setPersonalValido]   = useState(false)
-  const [personalStatus, setPersonalStatus]   = useState(null)
-  const [qrModo, setQrModo]                   = useState(null)
-  const [qrInput, setQrInput]                 = useState('')
-  const [buscarId, setBuscarId]               = useState('')
-  const [checkedItems, setCheckedItems]       = useState(new Set())
-  const [alertasStock, setAlertasStock]       = useState([])
-  const [modalAlertas, setModalAlertas]       = useState(false)
-  const [campanaVisible, setCampanaVisible]   = useState(false)
-  const [desdeAlertas, setDesdeAlertas]       = useState(false)
-  const [dropdownOpen, setDropdownOpen]       = useState(false)
-  const [modalNuevoProd, setModalNuevoProd]   = useState(false)
-  const [catalogosModal, setCatalogosModal]   = useState(null)
-  const [modalRecepcion, setModalRecepcion]   = useState(false)
-  const [recepcionItems, setRecepcionItems]   = useState([])
-  const [formNuevoProd, setFormNuevoProd]     = useState({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
-  const [modalLimites, setModalLimites]       = useState(false)
-  const [limites, setLimites]                 = useState([])
-  const [formLimite, setFormLimite]           = useState({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
-  const qrInputRef      = useRef(null)
-  const rolRef          = useRef(null)
-  const almacenRef      = useRef(null)
-  const productoRef     = useRef(null)
-  const limiteProdRef   = useRef(null)
-  const limitePeriRef   = useRef(null)
+  const { datos, setDatos, alertasStock, campanaVisible, setCampanaVisible, modalAlertas, setModalAlertas, handleDejarPendiente } = useDatos()
 
-  // ── Callback refs: Select2 se inicializa en el mismo commit que el elemento ──
-  const rolCallbackRef = useCallback(el => {
-    rolRef.current = el
-    if (!el || !window.$ || !window.$.fn?.select2) return
-    window.$(el).select2({ placeholder: 'Seleccione un cargo', width: '100%' })
-      .on('change.select2', e => setForm(f => ({ ...f, id_rol: e.target.value })))
-  }, [])
+  const {
+    form, setForm, productos, setProductos, prodSel, setProdSel,
+    solicitudActual, setSolicitudActual, buscarId, setBuscarId,
+    checkedItems, personalValido, personalStatus,
+    solicitanteEsEncargado, almacenesFiltrados, productosFiltrados, accionable,
+    rolCallbackRef, almacenCallbackRef, productoCallbackRef,
+    handleAgregarProducto, handleEnviar, handleNuevaSolicitud,
+    handleCancelar, handleAprobar, handleCheck,
+    handleGenerarDesdeAlertas, handleBuscarSolicitud, handleExportar,
+    procesarQRPersonal, handleMatriculaBlur, handleMatriculaChange,
+  } = useSolicitud({ datos, alertasStock, setModalAlertas, setCampanaVisible })
 
-  const almacenCallbackRef = useCallback(el => {
-    almacenRef.current = el
-    if (!el || !window.$ || !window.$.fn?.select2) return
-    window.$(el).select2({ placeholder: 'Seleccione un almacén', width: '100%' })
-      .on('change.select2', e => setForm(f => ({ ...f, id_almacen: e.target.value })))
-  }, [])
+  const { qrModo, setQrModo, qrInput, setQrInput, qrInputRef, handleQrEnter } = useQr({ datos, setProdSel, procesarQRPersonal })
 
-  const productoCallbackRef = useCallback(el => {
-    productoRef.current = el
-    if (!el || !window.$ || !window.$.fn?.select2) return
-    window.$(el).select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
-      .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
-  }, [])
+  const { modalNuevoProd, setModalNuevoProd, catalogosModal, formNuevoProd, setFormNuevoProd, abrirModalNuevoProd, handleGuardarNuevoProd } = useNuevoProducto({ setDatos, setProdSel })
 
+  const { modalRecepcion, setModalRecepcion, recepcionItems, setRecepcionItems, abrirModalRecepcion, handleConfirmarRecepcion } = useRecepcion({ solicitudActual, setSolicitudActual })
 
-  // ── Cargar catálogos + alertas de stock ───────────────────────────────────
-  useEffect(() => {
-    fetch('/Solicitudes/datos/')
-      .then(r => r.json())
-      .then(d => setDatos(d))
-      .catch(() => setDatos({}))
+  const { modalLimites, setModalLimites, limites, formLimite, setFormLimite, limiteProdRef, limitePeriRef, abrirModalLimites, handleGuardarLimite, handleEliminarLimite } = useLimites({ datos })
 
-    fetch('/Solicitudes/alertas-stock/')
-      .then(r => r.json())
-      .then(d => {
-        if (d.alertas && d.alertas.length > 0) {
-          setAlertasStock(d.alertas)
-          setCampanaVisible(true)
-          const yaVisto = sessionStorage.getItem('alertas_stock_vistas')
-          if (!yaVisto) setModalAlertas(true)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  // ── Auto-buscar si viene ?id= en la URL (desde Gestión de Personal) ─────────
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const id = params.get('id')
-    if (!id) return
-    setBuscarId(id)
-    fetch(`/Solicitudes/buscar/${id}/`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.solicitud) return
-        const sol = data.solicitud
-        setForm({
-          matricula:     String(sol.matricula || ''),
-          nombre:        sol.solicitante || '',
-          id_rol:        String(sol.id_rol || ''),
-          id_almacen:    String(sol.id_almacen || ''),
-          observaciones: '',
-        })
-        setProductos(sol.productos)
-        setPersonalValido(true)
-        setSolicitudActual(sol)
-        setCheckedItems(new Set())
-        setDesdeAlertas(false)
-        // Scroll suave hasta la sección de búsqueda
-        setTimeout(() => {
-          document.querySelector('.buscar-section')?.scrollIntoView({ behavior: 'smooth' })
-        }, 300)
-      })
-      .catch(() => {})
-  }, [])
-
-  // ── Foco en input QR al abrir overlay ─────────────────────────────────────
-  useEffect(() => {
-    if (qrModo && qrInputRef.current) {
-      setTimeout(() => qrInputRef.current?.focus(), 100)
-    }
-  }, [qrModo])
-
-  // ── Cerrar dropdown al hacer click fuera ──────────────────────────────────
   useEffect(() => {
     if (!dropdownOpen) return
     const h = e => { if (!e.target.closest('#userProfile')) setDropdownOpen(false) }
@@ -174,544 +52,6 @@ export default function Solicitud() {
     return () => document.removeEventListener('click', h)
   }, [dropdownOpen])
 
-  // ── Sincronizar React → Select2 (después de que callback ref inicializó) ───
-  useEffect(() => {
-    if (!window.$ || !rolRef.current) return
-    window.$(rolRef.current).val(form.id_rol).trigger('change.select2')
-  }, [form.id_rol])
-
-  useEffect(() => {
-    if (!window.$ || !almacenRef.current) return
-    window.$(almacenRef.current).val(form.id_almacen).trigger('change.select2')
-  }, [form.id_almacen])
-
-  useEffect(() => {
-    if (!window.$ || !productoRef.current) return
-    window.$(productoRef.current).val(prodSel.id_producto).trigger('change.select2')
-  }, [prodSel.id_producto])
-
-  // ── Select2 modal Límites ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!modalLimites || !window.$ || !window.$.fn?.select2) return
-    const $prod = window.$(limiteProdRef.current)
-    const $peri = window.$(limitePeriRef.current)
-    $prod.select2({ placeholder: 'Seleccione...', width: '100%', dropdownParent: window.$('body') })
-      .on('change.select2', e => setFormLimite(f => ({ ...f, id_producto: e.target.value })))
-    $peri.select2({ width: '100%', minimumResultsForSearch: Infinity, dropdownParent: window.$('body') })
-      .on('change.select2', e => setFormLimite(f => ({ ...f, periodo: e.target.value })))
-    $prod.val(formLimite.id_producto).trigger('change.select2')
-    $peri.val(formLimite.periodo).trigger('change.select2')
-    return () => {
-      if ($prod.data('select2')) $prod.select2('destroy')
-      if ($peri.data('select2')) $peri.select2('destroy')
-    }
-  }, [modalLimites])
-
-  // ── Reinicializar Select2 de producto cuando cambia la lista o el almacén ──
-  useEffect(() => {
-    if (!window.$ || !productoRef.current) return
-    const $el = window.$(productoRef.current)
-    if ($el.data('select2')) $el.select2('destroy')
-    $el.select2({ placeholder: 'Seleccione un producto', width: '100%', templateResult: prodTemplate, templateSelection: prodTemplate })
-      .on('change.select2', e => setProdSel(s => ({ ...s, id_producto: e.target.value })))
-    // Limpiar selección si el producto actual quedó fuera del filtro
-    if (prodSel.id_producto) {
-      const sigueDisponible = productosFiltrados.find(p => String(p.id_producto) === prodSel.id_producto)
-      if (sigueDisponible) $el.val(prodSel.id_producto).trigger('change.select2')
-      else setProdSel(s => ({ ...s, id_producto: '' }))
-    }
-  }, [datos?.productos?.length, form.id_almacen])
-
-  const accionable  = solicitudActual?.estatus === 'SOLICITADA'
-
-  // Filtrar almacenes según el rol del solicitante
-  const solicitanteRolNombre = form.id_rol
-    ? (datos?.roles?.find(r => String(r.id_rol) === String(form.id_rol))?.nombre_rol || '')
-    : ''
-  const solicitanteEsEncargado = solicitanteRolNombre.toLowerCase().includes('encargado')
-  const almacenesFiltrados = !form.id_rol || solicitanteEsEncargado
-    ? (datos?.almacenes || [])
-    : (datos?.almacenes || []).filter(a => a.tipo_almacen.toLowerCase().includes('cuautepec'))
-
-  // Filtrar productos según almacén destino:
-  // Central → todos; otro → solo productos con estatus Activo
-  const almacenEsCentral   = datos?.ids_almacen_central?.includes(parseInt(form.id_almacen)) ?? false
-  const productosFiltrados = almacenEsCentral
-    ? (datos?.productos || [])
-    : (datos?.productos || []).filter(p => p.id_estatus === datos?.id_estatus_activo)
-
-  // ── Reinicializar Select2 de almacén cuando cambian las opciones ───────────
-  useEffect(() => {
-    if (!window.$ || !almacenRef.current) return
-    const $el = window.$(almacenRef.current)
-    if ($el.data('select2')) $el.select2('destroy')
-    $el.select2({ placeholder: 'Seleccione un almacén', width: '100%' })
-      .on('change.select2', e => setForm(f => ({ ...f, id_almacen: e.target.value })))
-    // Auto-seleccionar si solo hay una opción
-    if (!solicitudActual && almacenesFiltrados.length === 1) {
-      setForm(f => ({ ...f, id_almacen: String(almacenesFiltrados[0].id_almacen) }))
-    } else if (!solicitudActual && form.id_almacen && !almacenesFiltrados.find(a => String(a.id_almacen) === form.id_almacen)) {
-      setForm(f => ({ ...f, id_almacen: '' }))
-    }
-  }, [solicitanteEsEncargado])
-
-  // ── Agregar producto a tabla ───────────────────────────────────────────────
-  const handleAgregarProducto = () => {
-    if (solicitudActual) return
-    if (!prodSel.id_producto || prodSel.cantidad <= 0) return
-
-    const id   = String(prodSel.id_producto)
-    const cant = parseInt(prodSel.cantidad) || 1
-    const info = datos?.productos?.find(p => String(p.id_producto) === id)
-    const nombre = info?.nombre_producto || id
-
-    setProductos(prev => {
-      const existe = prev.find(p => p.id_producto === id)
-      if (existe) return prev.map(p => p.id_producto === id ? { ...p, cantidad: p.cantidad + cant } : p)
-      return [...prev, { id_producto: id, nombre, cantidad: cant }]
-    })
-    setProdSel({ id_producto: '', cantidad: 1 })
-  }
-
-  // ── Enviar solicitud ───────────────────────────────────────────────────────
-  const handleEnviar = async () => {
-    if (solicitudActual) return
-    if (!form.matricula.trim()) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa la matrícula del solicitante.' }); return
-    }
-    if (desdeAlertas && !solicitanteEsEncargado) {
-      window.Swal.fire({ icon: 'error', title: 'Sin permiso', text: 'Solo un encargado de almacén puede generar una solicitud de reabastecimiento.' })
-        .then(() => {
-          setDesdeAlertas(false)
-          setProductos([])
-          setForm(f => ({ ...f, id_almacen: '' }))
-        })
-      return
-    }
-    if (!personalValido) {
-      window.Swal.fire({ icon: 'warning', title: 'Personal inválido', text: 'La matrícula no está registrada. Verifica o usa el escáner QR.' }); return
-    }
-    if (!form.nombre.trim()) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa el nombre del solicitante.' }); return
-    }
-    if (!form.id_almacen) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Selecciona un almacén de destino.' }); return
-    }
-    if (productos.length === 0) {
-      window.Swal.fire({ icon: 'warning', title: 'Sin productos', text: 'Agrega al menos un producto.' }); return
-    }
-
-    const data = {
-      id_almacen:              form.id_almacen,
-      id_personal:             form.matricula.trim(),
-      observaciones_solicitud: form.observaciones.trim(),
-      productos: productos.map(p => ({ id_producto: p.id_producto, cantidad: p.cantidad })),
-    }
-
-    try {
-      const res = await fetch(APP_URLS.crear_solicitud, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body:    JSON.stringify(data),
-      })
-      const rawText = await res.text()
-      let result
-      try { result = JSON.parse(rawText) } catch { throw new Error('Respuesta inválida del servidor: ' + rawText) }
-
-      if (res.ok) {
-        setSolicitudActual(result.solicitud)
-        setProductos(result.solicitud.productos)
-        setCheckedItems(new Set())
-        if (desdeAlertas) setCampanaVisible(false)
-        setDesdeAlertas(false)
-        window.Swal.fire({ icon: 'success', title: 'Solicitud creada', text: 'Solicitud registrada correctamente.', timer: 2000, showConfirmButton: false })
-      } else {
-        throw new Error(result.message || result.error || rawText)
-      }
-    } catch (err) {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: err.message })
-    }
-  }
-
-  // ── Nueva solicitud ───────────────────────────────────────────────────────
-  const handleNuevaSolicitud = () => {
-    setSolicitudActual(null)
-    setForm({ matricula: '', nombre: '', id_rol: '', id_almacen: '', observaciones: '' })
-    setProductos([])
-    setProdSel({ id_producto: '', cantidad: 1 })
-    setPersonalValido(false)
-    setPersonalStatus(null)
-    setCheckedItems(new Set())
-    document.getElementById('nueva-solicitud-container')?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  // ── Cancelar solicitud ─────────────────────────────────────────────────────
-  const handleCancelar = async () => {
-    if (!solicitudActual) return
-    const conf = await window.Swal.fire({
-      icon: 'question', title: '¿Cancelar solicitud?',
-      showCancelButton: true, confirmButtonText: 'Sí, cancelar',
-      cancelButtonText: 'No', confirmButtonColor: '#dc3545',
-    })
-    if (!conf.isConfirmed) return
-
-    try {
-      const res = await fetch(`${APP_URLS.cancelar_solicitud}${solicitudActual.id_solicitud}/`, {
-        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      })
-      const result = await res.json()
-      if (res.ok) {
-        window.Swal.fire({ icon: 'success', title: 'Cancelada', text: 'Solicitud cancelada.', timer: 2000, showConfirmButton: false })
-          .then(() => location.reload())
-      } else {
-        throw new Error(result.message || result.error)
-      }
-    } catch (err) {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: err.message })
-    }
-  }
-
-  // ── Generar solicitud desde alertas de stock ───────────────────────────────
-  const handleGenerarDesdeAlertas = () => {
-    sessionStorage.removeItem('alertas_stock_vistas')
-    setModalAlertas(false)
-    setDesdeAlertas(true)
-    const idCentral = datos?.ids_almacen_central?.[0]
-    setForm(f => ({ ...f, id_almacen: idCentral ? String(idCentral) : '' }))
-    setProductos(alertasStock.map(a => ({
-      id_producto: String(a.id_producto),
-      nombre:      a.nombre_producto,
-      cantidad:    a.faltante,
-    })))
-  }
-
-  const handleDejarPendiente = () => {
-    sessionStorage.setItem('alertas_stock_vistas', '1')
-    setModalAlertas(false)
-  }
-
-  // ── Checklist de productos ─────────────────────────────────────────────────
-  const handleCheck = async (id_producto) => {
-    const nuevos = new Set(checkedItems)
-    if (nuevos.has(id_producto)) {
-      nuevos.delete(id_producto)
-      setCheckedItems(nuevos)
-      return
-    }
-    nuevos.add(id_producto)
-    setCheckedItems(nuevos)
-
-    if (nuevos.size === productos.length) {
-      const conf = await window.Swal.fire({
-        icon: 'success',
-        title: 'Todos los productos verificados',
-        text: '¿Deseas aprobar la solicitud?',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, aprobar',
-        cancelButtonText: 'No por ahora',
-        confirmButtonColor: '#28a745',
-      })
-      if (conf.isConfirmed) await handleAprobar()
-      else {
-        nuevos.delete(id_producto)
-        setCheckedItems(new Set(nuevos))
-      }
-    }
-  }
-
-  // ── Aprobar solicitud ──────────────────────────────────────────────────────
-  const handleAprobar = async () => {
-    if (!solicitudActual) return
-    const conf = await window.Swal.fire({
-      icon: 'question', title: '¿Aprobar solicitud?',
-      showCancelButton: true, confirmButtonText: 'Sí, aprobar',
-      cancelButtonText: 'No', confirmButtonColor: '#28a745',
-    })
-    if (!conf.isConfirmed) return
-
-    try {
-      const res = await fetch(`${APP_URLS.aprobar_solicitud}${solicitudActual.id_solicitud}/`, {
-        method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      })
-      const result = await res.json()
-      if (res.ok) {
-        setSolicitudActual(s => ({ ...s, estatus: 'APROBADA' }))
-        window.Swal.fire({ icon: 'success', title: 'Aprobada', text: 'Solicitud aprobada correctamente.', timer: 2000, showConfirmButton: false })
-      } else {
-        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo aprobar.' })
-      }
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al aprobar la solicitud.' })
-    }
-  }
-
-  // ── Registrar recepción ────────────────────────────────────────────────────
-  const abrirModalRecepcion = () => {
-    if (!solicitudActual) return
-    setRecepcionItems(
-      solicitudActual.productos.map(p => ({
-        id_producto:      p.id_producto,
-        nombre:           p.nombre,
-        cantidad:         p.cantidad,
-        cantidad_recibida: p.cantidad,
-      }))
-    )
-    setModalRecepcion(true)
-  }
-
-  const handleConfirmarRecepcion = async () => {
-    const hayError = recepcionItems.some(p => p.cantidad_recibida < 0 || p.cantidad_recibida > p.cantidad)
-    if (hayError) {
-      window.Swal.fire({ icon: 'warning', title: 'Cantidad inválida', text: 'La cantidad recibida no puede ser mayor a la solicitada ni negativa.' })
-      return
-    }
-    try {
-      const res = await fetch(`${APP_URLS.registrar_recepcion}${solicitudActual.id_solicitud}/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productos: recepcionItems.map(p => ({ id_producto: p.id_producto, cantidad_recibida: p.cantidad_recibida })) }),
-      })
-      const result = await res.json()
-      if (res.ok) {
-        const hayParcial = recepcionItems.some(p => p.cantidad_recibida < p.cantidad)
-        const nuevoEstatus = hayParcial ? 'ENTREGA_PARCIAL' : 'COMPLETADA'
-        setSolicitudActual(s => ({ ...s, estatus: nuevoEstatus }))
-        setModalRecepcion(false)
-        const idNueva = result.id_solicitud_nueva
-        window.Swal.fire({
-          icon: 'success',
-          title: hayParcial ? 'Entrega parcial registrada' : 'Entrega completa registrada',
-          html: hayParcial
-            ? `Algunos productos no llegaron en su totalidad.<br><br>Se generó la solicitud de seguimiento <b>#${idNueva}</b> y se notificó a almacén central.`
-            : 'Todos los productos fueron recibidos correctamente.',
-          timer: hayParcial ? 0 : 2500,
-          showConfirmButton: hayParcial,
-          confirmButtonText: 'Aceptar',
-        })
-      } else {
-        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo registrar la recepción.' })
-      }
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al registrar la recepción.' })
-    }
-  }
-
-  // ── QR Personal ────────────────────────────────────────────────────────────
-  const procesarQRPersonal = async (qrData) => {
-    try {
-      const res  = await fetch(`${APP_URLS.buscar_personal_qr}?qr_data=${encodeURIComponent(qrData)}`, {
-        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        window.Swal.fire({ icon: 'error', title: 'No encontrado', text: data.error || 'No se encontró el personal.' }); return
-      }
-      setForm(f => ({ ...f, matricula: String(data.matricula), nombre: data.nombre, id_rol: String(data.id_rol) }))
-      setPersonalValido(true)
-      setPersonalStatus('ok')
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al leer el QR de personal.' })
-    }
-  }
-
-  // ── QR Producto ────────────────────────────────────────────────────────────
-  const procesarQRProducto = (qrData) => {
-    const partes = qrData.split(' - ')
-    if (partes.length < 2) {
-      window.Swal.fire({ icon: 'warning', title: 'QR no reconocido', text: 'Formato de QR de producto no reconocido.' }); return
-    }
-    const idProducto = partes[0].trim()
-    const existe = datos?.productos?.find(p => String(p.id_producto) === idProducto)
-    if (!existe) {
-      window.Swal.fire({ icon: 'warning', title: 'No encontrado', text: `Producto con ID ${idProducto} no encontrado en la lista.` }); return
-    }
-    setProdSel(s => ({ ...s, id_producto: idProducto }))
-  }
-
-  // ── Enter en input QR — detección automática ──────────────────────────────
-  const handleQrEnter = async (e) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    const contenido = qrInput.trim()
-    setQrModo(null)
-    setQrInput('')
-    if (!contenido) return
-    // URL → QR de personal; "id - nombre" → QR de producto
-    if (contenido.startsWith('http://') || contenido.startsWith('https://')) {
-      await procesarQRPersonal(contenido)
-    } else if (contenido.includes(' - ')) {
-      procesarQRProducto(contenido)
-    } else {
-      // Fallback: intentar como personal (matrícula directa u otro formato)
-      await procesarQRPersonal(contenido)
-    }
-  }
-
-  // ── Validar personal en blur (solo encargado) ──────────────────────────────
-  const handleMatriculaBlur = async () => {
-    const valor = form.matricula.trim()
-    if (!valor) { setPersonalStatus(null); return }
-    setPersonalStatus('cargando')
-    try {
-      const res  = await fetch(`${APP_URLS.buscar_personal_qr}?qr_data=${encodeURIComponent(valor)}`)
-      const data = await res.json()
-      if (res.ok) {
-        setForm(f => ({ ...f, nombre: data.nombre, id_rol: String(data.id_rol) }))
-        setPersonalValido(true)
-        setPersonalStatus('ok')
-      } else {
-        setPersonalValido(false)
-        setPersonalStatus('error')
-      }
-    } catch {
-      setPersonalValido(false)
-      setPersonalStatus('error')
-    }
-  }
-
-  // ── Abrir modal nuevo producto ─────────────────────────────────────────────
-  const abrirModalNuevoProd = async () => {
-    if (!catalogosModal) {
-      try {
-        const res = await fetch('/GestiondeProductos/datos/')
-        const d = await res.json()
-        setCatalogosModal(d)
-      } catch {
-        window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los catálogos.' }); return
-      }
-    }
-    setModalNuevoProd(true)
-  }
-
-  // ── Guardar nuevo producto ─────────────────────────────────────────────────
-  const handleGuardarNuevoProd = async () => {
-    if (!formNuevoProd.nombre.trim()) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa el nombre del producto.' }); return
-    }
-    if (!formNuevoProd.id_categoria || !formNuevoProd.id_unidad) {
-      window.Swal.fire({ icon: 'warning', title: 'Campos requeridos', text: 'Selecciona categoría y unidad.' }); return
-    }
-    try {
-      const res = await fetch('/GestiondeProductos/crear-rapido/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({
-          nombre_producto:      formNuevoProd.nombre.trim(),
-          descripcion_producto: formNuevoProd.descripcion,
-          categoria_id:         formNuevoProd.id_categoria,
-          unidad_id:            formNuevoProd.id_unidad,
-          stock_minimo:         parseInt(formNuevoProd.stock_minimo) || 10,
-        }),
-      })
-      const result = await res.json()
-      if (result.success) {
-        setDatos(d => ({ ...d, productos: [...d.productos, { id_producto: result.id_producto, nombre_producto: result.nombre_producto, cantidad: result.cantidad }] }))
-        setProdSel(s => ({ ...s, id_producto: String(result.id_producto) }))
-        setModalNuevoProd(false)
-        setFormNuevoProd({ nombre: '', descripcion: '', id_categoria: '', id_unidad: '', stock_minimo: 10 })
-        window.Swal.fire({ icon: 'success', title: 'Producto creado', text: `"${result.nombre_producto}" registrado correctamente.`, timer: 2000, showConfirmButton: false })
-      } else {
-        window.Swal.fire({ icon: 'error', title: 'Error', text: result.message })
-      }
-    } catch (err) {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: err.message })
-    }
-  }
-
-  // ── Buscar solicitud por ID ────────────────────────────────────────────────
-  const handleBuscarSolicitud = async () => {
-    if (!buscarId.trim()) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Ingresa el ID de la solicitud.' }); return
-    }
-    try {
-      const res  = await fetch(`${APP_URLS.buscar_solicitud}${buscarId}/`)
-      const data = await res.json()
-      if (!res.ok) {
-        window.Swal.fire({ icon: 'info', title: 'No encontrada', text: data.error || 'Solicitud no encontrada.' }); return
-      }
-      const sol = data.solicitud
-      setForm({
-        matricula:    String(sol.matricula || ''),
-        nombre:       sol.solicitante || '',
-        id_rol:       String(sol.id_rol || ''),
-        id_almacen:   String(sol.id_almacen || ''),
-        observaciones: '',
-      })
-      setProductos(sol.productos)
-      setPersonalValido(true)
-      setSolicitudActual(sol)
-      setCheckedItems(new Set())
-      setDesdeAlertas(false)
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'Error al buscar la solicitud.' })
-    }
-  }
-
-  // ── Exportar PDF ──────────────────────────────────────────────────────────
-  const handleExportar = () => {
-    if (!solicitudActual) return
-    window.open(`${APP_URLS.exportar_pdf}${solicitudActual.id_solicitud}/`)
-  }
-
-  // ── Gestión de límites ────────────────────────────────────────────────────
-  const abrirModalLimites = async () => {
-    try {
-      const res = await fetch(APP_URLS.limites)
-      const data = await res.json()
-      setLimites(data.limites)
-      setModalLimites(true)
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los límites.' })
-    }
-  }
-
-  const handleGuardarLimite = async () => {
-    if (!formLimite.id_producto) {
-      window.Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Selecciona un producto.' }); return
-    }
-    try {
-      const res = await fetch(APP_URLS.limites, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify(formLimite),
-      })
-      const result = await res.json()
-      if (res.ok) {
-        const res2 = await fetch(APP_URLS.limites)
-        const data2 = await res2.json()
-        setLimites(data2.limites)
-        setFormLimite({ id_producto: '', cantidad_maxima: 5, periodo: 'diario' })
-        window.Swal.fire({ icon: 'success', title: result.created ? 'Límite creado' : 'Límite actualizado', timer: 1500, showConfirmButton: false })
-      } else {
-        window.Swal.fire({ icon: 'error', title: 'Error', text: result.error })
-      }
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el límite.' })
-    }
-  }
-
-  const handleEliminarLimite = async (id_limite) => {
-    const conf = await window.Swal.fire({
-      icon: 'question', title: '¿Eliminar límite?',
-      showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'No',
-      confirmButtonColor: '#dc3545',
-    })
-    if (!conf.isConfirmed) return
-    try {
-      const res = await fetch(APP_URLS.limites, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({ id_limite }),
-      })
-      if (res.ok) {
-        setLimites(prev => prev.filter(l => l.id_limite !== id_limite))
-      }
-    } catch {
-      window.Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el límite.' })
-    }
-  }
-
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (!datos) return <p style={{ padding: '2rem' }}>Cargando...</p>
 
   return (
@@ -748,8 +88,7 @@ export default function Solicitud() {
                 onClick={() => setModalAlertas(o => !o)}
                 style={{
                   position: 'relative', background: 'none', border: 'none',
-                  cursor: 'pointer', fontSize: '1.3rem', color: '#C9A84C',
-                  padding: '4px 8px',
+                  cursor: 'pointer', fontSize: '1.3rem', color: '#C9A84C', padding: '4px 8px',
                 }}
                 title={`${alertasStock.length} producto(s) con stock bajo`}
               >
@@ -767,16 +106,16 @@ export default function Solicitud() {
               </button>
             )}
             <div className={`user-profile${dropdownOpen ? ' active' : ''}`} id="userProfile" onClick={() => setDropdownOpen(o => !o)}>
-            <div className="user-info">
-              <span className="user-name">{datos.persona_nombre}</span>
-              <span className="user-role">{datos.user_role}</span>
+              <div className="user-info">
+                <span className="user-name">{datos.persona_nombre}</span>
+                <span className="user-role">{datos.user_role}</span>
+              </div>
+              <div className="user-avatar"><i className="fas fa-user"></i></div>
+              <div className="dropdown-menu">
+                <a href="/home/" className="dropdown-item"><i className="fas fa-home"></i><span>Inicio</span></a>
+                <a href="/login/logout/" className="dropdown-item logout"><i className="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span></a>
+              </div>
             </div>
-            <div className="user-avatar"><i className="fas fa-user"></i></div>
-            <div className="dropdown-menu">
-              <a href="/home/" className="dropdown-item"><i className="fas fa-home"></i><span>Inicio</span></a>
-              <a href="/login/logout/" className="dropdown-item logout"><i className="fas fa-sign-out-alt"></i><span>Cerrar Sesión</span></a>
-            </div>
-          </div>
           </div>
         </div>
       </header>
@@ -826,19 +165,14 @@ export default function Solicitud() {
 
               {/* ── Columna izquierda: Datos del solicitante ── */}
               <div className="col-solicitante">
-
                 <div className="form-grid">
                   <div className="form-group">
                     <label><i className="fas fa-id-card"></i> Matrícula</label>
                     <input type="text" placeholder="Ej. 2024001" autoComplete="off"
                       value={form.matricula}
                       readOnly={!!solicitudActual}
-                      onChange={e => {
-                        setForm(f => ({ ...f, matricula: e.target.value, nombre: '', id_rol: '' }))
-                        setPersonalValido(false)
-                        setPersonalStatus(null)
-                      }}
-                      onBlur={handleMatriculaBlur} />
+                      onChange={e => handleMatriculaChange(e.target.value)}
+                      onBlur={() => handleMatriculaBlur(form.matricula)} />
                     {personalStatus && (
                       <span className={`personal-status ${statusMap[personalStatus]?.cls}`}
                         dangerouslySetInnerHTML={{ __html: statusMap[personalStatus]?.html }} />
@@ -852,8 +186,7 @@ export default function Solicitud() {
                   </div>
                   <div className="form-group">
                     <label><i className="fas fa-briefcase"></i> Cargo</label>
-                    <select ref={rolCallbackRef}
-                      disabled={!!solicitudActual || !!form.id_rol}>
+                    <select ref={rolCallbackRef} disabled={!!solicitudActual || !!form.id_rol}>
                       <option value="">Seleccione un cargo</option>
                       {datos.roles?.map(r => <option key={r.id_rol} value={r.id_rol}>{r.nombre_rol}</option>)}
                     </select>
@@ -892,7 +225,6 @@ export default function Solicitud() {
 
               {/* ── Columna derecha: Productos ── */}
               <div className="col-productos">
-
                 {!solicitudActual && (
                   <div id="panel-crear-productos">
                     <h4 className="subsection-title"><i className="fas fa-boxes"></i> Productos Solicitados</h4>
@@ -967,8 +299,7 @@ export default function Solicitud() {
                             {accionable && (
                               <td style={{ textAlign: 'center' }}>
                                 <input
-                                  type="checkbox"
-                                  checked={checked}
+                                  type="checkbox" checked={checked}
                                   onChange={() => handleCheck(p.id_producto)}
                                   style={{ width: '18px', height: '18px', accentColor: '#28a745', cursor: 'pointer' }}
                                 />
@@ -1020,7 +351,6 @@ export default function Solicitud() {
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
           </section>
@@ -1084,8 +414,6 @@ export default function Solicitud() {
       {modalAlertas && (
         <div className="qr-overlay" style={{ display: 'flex', alignItems: 'center', padding: '2rem 1rem' }}>
           <div className="qr-box" style={{ maxWidth: '620px', width: '100%', textAlign: 'left', alignItems: 'stretch', margin: 'auto', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-
-            {/* Encabezado fijo */}
             <h4 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(220,53,69,.2)', color: '#dc3545', flexShrink: 0 }}>
               <i className="fas fa-exclamation-triangle"></i> Productos con stock bajo
               <span style={{ marginLeft: 'auto', background: '#dc3545', color: '#fff', borderRadius: '999px', fontSize: '0.75rem', padding: '2px 10px', fontWeight: 700 }}>
@@ -1095,8 +423,6 @@ export default function Solicitud() {
             <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '0.75rem', flexShrink: 0 }}>
               Los siguientes productos activos están por debajo de su stock mínimo:
             </p>
-
-            {/* Tabla con scroll */}
             <div style={{ overflowY: 'auto', flex: 1, marginBottom: '1rem', border: '1px solid #e5e5e5', borderRadius: '6px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
@@ -1119,8 +445,6 @@ export default function Solicitud() {
                 </tbody>
               </table>
             </div>
-
-            {/* Acciones fijas */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexShrink: 0 }}>
               <button type="button" className="btn btn-secondary" onClick={handleDejarPendiente}>
                 <i className="fas fa-bell"></i> Dejar pendiente
@@ -1159,9 +483,7 @@ export default function Solicitud() {
                       <td style={{ padding: '7px 10px', textAlign: 'center', color: '#555' }}>{p.cantidad}</td>
                       <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                         <input
-                          type="number"
-                          min={0}
-                          max={p.cantidad}
+                          type="number" min={0} max={p.cantidad}
                           value={p.cantidad_recibida}
                           onChange={e => {
                             const val = Math.min(p.cantidad, Math.max(0, parseInt(e.target.value) || 0))
@@ -1210,8 +532,6 @@ export default function Solicitud() {
             <h4 style={{ marginBottom: '1.25rem', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '.5rem', paddingBottom: '.75rem', borderBottom: '2px solid rgba(100,4,4,.12)', color: '#1a1a1a' }}>
               <i className="fas fa-sliders-h" style={{ color: '#640404' }}></i> Límites de Solicitud por Producto
             </h4>
-
-            {/* Formulario agregar/actualizar */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 140px auto', gap: '0.75rem', alignItems: 'end', marginBottom: '1.25rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
                 <label>Producto</label>
@@ -1237,8 +557,6 @@ export default function Solicitud() {
                 <i className="fas fa-save"></i> Guardar
               </button>
             </div>
-
-            {/* Tabla de límites actuales */}
             <div style={{ overflowY: 'auto', maxHeight: '45vh', border: '1px solid #e5e5e5', borderRadius: '6px', marginBottom: '1rem' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.87rem' }}>
                 <thead>
@@ -1268,7 +586,6 @@ export default function Solicitud() {
                 </tbody>
               </table>
             </div>
-
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setModalLimites(false)}>
                 <i className="fas fa-times"></i> Cerrar
